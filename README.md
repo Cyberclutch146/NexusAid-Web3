@@ -50,6 +50,12 @@
 * **Razorpay Integration**: Secure, seamless in-app donation panel for funding campaigns, complete with order creation and fulfillment endpoints.
 * **Goods & Material Pledging**: Interactive forms and modals allowing users to formally pledge physical goods, supplies, or materials for specific relief events.
 
+### ⛓️ Web3 Identity & Reputation (Soulbound Tokens)
+* **On-Chain Reputation**: Earn non-transferable Soulbound Tokens (SBTs) on the Polygon network to verify community contributions (volunteering, organizing, donating).
+* **Decentralized Badging**: Claim tiered badges (Bronze, Silver, Gold, Platinum, Master, Diamond) based on automated Firebase metrics verification.
+* **Hybrid Metadata Storage**: Robust hybrid storage architecture securely hosts generated SVG-based badge metadata on Firebase Storage, linking directly to smart contracts.
+* **Immutable Transparency**: Fully visible on-chain interactions provide undeniable proof of impact and participation without manual user administration.
+
 ---
 
 ## 🛠 Technical Excellence
@@ -64,6 +70,7 @@
 | **Payments**     | [Razorpay](https://razorpay.com/)                                                                   |
 | **Mapping**      | [Leaflet](https://leafletjs.com/) & [React-Leaflet](https://react-leaflet.js.org/)                  |
 | **Comms/Parser** | [Twilio](https://twilio.com/), [Nodemailer](https://nodemailer.com/), CSV-Parser, Papaparse, XLSX   |
+| **Web3**         | Solidity, Hardhat, Ethers.js, Polygon (Amoy Testnet)                                                |
 
 ---
 
@@ -75,12 +82,14 @@ graph TD
     Client[Next.js Frontend Client] -->|API Requests| NextAPI[Next.js Serverless API Routes]
     Client -->|Direct Read/Write| Firestore[(Firebase Firestore)]
     Client -->|Auth State| FirebaseAuth[Firebase Authentication]
+    Client -->|Wallet Connect| Web3[Web3 Provider / MetaMask]
     
     NextAPI -->|Event Data & Logs| FirestoreAdmin[(Firebase Admin SDK)]
     NextAPI -->|Emails| Nodemailer[Nodemailer Service]
     NextAPI -->|SMS| Twilio[Twilio Service]
     NextAPI -->|AI Prompts| LLM[Google Gemini / OpenAI]
     NextAPI -->|Payments| Razorpay[Razorpay API]
+    NextAPI -->|Minting & Verification| SmartContracts[Polygon Smart Contracts]
 ```
 
 ### Event Creation & Bulk Promotion Flow

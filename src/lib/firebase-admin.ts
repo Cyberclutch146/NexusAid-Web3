@@ -30,6 +30,7 @@ if (!admin.apps.length) {
           clientEmail: clientEmail,
           privateKey: privateKey,
         }),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
       });
     } else {
       // Fallback: Try to use the local serviceAccountKey.json if it exists
@@ -40,7 +41,8 @@ if (!admin.apps.length) {
       if (fs.existsSync(serviceAccountPath)) {
         const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
         admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount)
+          credential: admin.credential.cert(serviceAccount),
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`
         });
       } else {
         initError = "No serviceAccountKey.json found and environment variables are missing.";
@@ -57,4 +59,5 @@ if (!admin.apps.length) {
 // Export the admin db instance
 export const adminDb = admin.apps.length ? admin.firestore() : null;
 export const adminAuth = admin.apps.length ? admin.auth() : null;
+export const adminStorage = admin.apps.length ? admin.storage() : null;
 
