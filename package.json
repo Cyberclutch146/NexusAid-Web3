@@ -12,7 +12,6 @@
     "@google/generative-ai": "^0.24.1",
     "@use-gesture/react": "^10.3.1",
     "csv-parser": "^3.2.0",
-    "dotenv": "^17.4.2",
     "firebase": "^12.12.1",
     "firebase-admin": "^13.8.0",
     "framer-motion": "^12.38.0",
@@ -36,6 +35,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.2",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
@@ -43,8 +43,10 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "hardhat": "^2.22.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
