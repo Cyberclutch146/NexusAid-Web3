@@ -166,8 +166,9 @@ export default function NavbarTop() {
   const navLinks = [
     { label: 'Home', path: '/home' },
     { label: 'Events', path: '/feed' },
-    { label: 'Organize', path: '/create' },
+    { label: 'Create', path: '/create' },
     { label: 'Dashboard', path: '/dashboard', exact: true },
+    { label: 'Blockchain', path: '/dashboard/blockchain' },
     { label: 'Sentinel', path: '/dashboard/sentinel' },
     { label: 'Leaderboard', path: '/leaderboard' },
   ]

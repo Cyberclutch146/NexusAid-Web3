@@ -17,6 +17,7 @@ export function SideNav() {
   const navItems = [
     { name: 'Feed', href: '/feed', icon: 'dashboard' },
     { name: 'Dashboard', href: '/dashboard', icon: 'volunteer_activism' },
+    { name: 'Blockchain', href: '/dashboard/blockchain', icon: 'hub' },
     { name: 'Sentinel', href: '/dashboard/sentinel', icon: 'security' },
     { name: 'Leaderboard', href: '/leaderboard', icon: 'emoji_events' },
     { name: 'Create', href: '/create', icon: 'inventory_2' },
@@ -305,6 +306,7 @@ export function MobileBottomNav() {
     { name: 'Feed', href: '/feed', icon: 'dashboard', exact: true },
     { name: 'Create', href: '/create', icon: 'add_circle', exact: true },
     { name: 'Dashboard', href: '/dashboard', icon: 'volunteer_activism', exact: true },
+    { name: 'Blockchain', href: '/dashboard/blockchain', icon: 'hub' },
     { name: 'Sentinel', href: '/dashboard/sentinel', icon: 'security' },
   ];
 
