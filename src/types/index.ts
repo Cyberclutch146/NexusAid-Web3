@@ -50,6 +50,9 @@ export interface CommunityEvent {
   eventDate?: string;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+  // ─── Web3 / on-chain fields (optional, set after campaign registration) ─────
+  onChainCampaignId?: number | null;
+  contractAddress?: string | null;
 }
 
 export type CommunityEventCreate = Omit<CommunityEvent, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'status'>;

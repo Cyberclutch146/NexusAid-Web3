@@ -408,6 +408,7 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
             }
             enrolledCount={event.needs?.volunteers?.current || 0}
             needs={event.needs}
+            onChainCampaignId={event.onChainCampaignId ?? null}
             onActionComplete={refreshEvent}
           />
         </div>

@@ -9,10 +9,12 @@ import { toast } from 'sonner';
 import LocationPickerWrapper from '@/components/LocationPickerWrapper';
 import DateTimePicker from '@/components/DateTimePicker';
 import PromotionModal from '@/components/PromotionModal';
+import { useCreateCampaign } from '@/hooks/useCreateCampaign';
 
 export default function CreateEventPage() {
   const router = useRouter();
   const { user, profile } = useAuth();
+  const { createOnChainCampaign, status: web3Status } = useCreateCampaign();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -68,6 +70,16 @@ export default function CreateEventPage() {
         }
       });
       toast.success('Event published successfully!');
+
+      // ── Web3: create matching on-chain campaign (non-blocking) ──
+      // If MetaMask is available, prompt organizer to register campaign on-chain.
+      // If they reject or have no wallet, the event still works normally.
+      createOnChainCampaign(newEventId).then((campaignId) => {
+        if (campaignId !== null) {
+          toast.success(`Campaign registered on-chain (ID: ${campaignId}) 🔗`);
+        }
+      });
+
       router.push(`/event/${newEventId}`);
     } catch (err) {
       console.error(err);

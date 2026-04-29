@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { VolunteerModal } from './VolunteerModal';
 import { GoodsPledgeModal } from './GoodsPledgeModal';
 import { DonateWithCrypto } from './DonateWithCrypto';
+import { CampaignStats } from './CampaignStats';
 
 declare global {
   interface Window {
@@ -23,6 +24,7 @@ interface DonationPanelProps {
   eventTime: string;
   enrolledCount: number;
   needs: EventNeeds;
+  onChainCampaignId?: number | null; // from Firestore, set after on-chain registration
   onActionComplete?: () => void;
 }
 
@@ -33,7 +35,8 @@ export function DonationPanel({
   eventLocation,
   eventTime,
   enrolledCount,
-  needs, 
+  needs,
+  onChainCampaignId,
   onActionComplete 
 }: DonationPanelProps) {
   const { user, profile } = useAuth();
@@ -226,7 +229,15 @@ export function DonationPanel({
             )}
 
             {/* ─── Web3 Crypto Donation ─── */}
-            <DonateWithCrypto campaignId={0} onSuccess={onActionComplete} />
+            <DonateWithCrypto
+              campaignId={onChainCampaignId ?? 0}
+              onSuccess={onActionComplete}
+            />
+
+            {/* ─── On-chain Transparency Panel ─── */}
+            {onChainCampaignId != null && (
+              <CampaignStats campaignId={onChainCampaignId} />
+            )}
           </div>
         )}
 
