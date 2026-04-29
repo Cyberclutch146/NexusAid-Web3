@@ -7,6 +7,7 @@ import { updateDonation, addVolunteerSignup, getUserPledge } from '@/services/ev
 import { toast } from 'sonner';
 import { VolunteerModal } from './VolunteerModal';
 import { GoodsPledgeModal } from './GoodsPledgeModal';
+import { DonateWithCrypto } from './DonateWithCrypto';
 
 declare global {
   interface Window {
@@ -223,6 +224,9 @@ export function DonationPanel({
                 Thank you for your donation!
               </div>
             )}
+
+            {/* ─── Web3 Crypto Donation ─── */}
+            <DonateWithCrypto campaignId={0} onSuccess={onActionComplete} />
           </div>
         )}
 

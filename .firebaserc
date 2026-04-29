@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "kindred-relief-network"
+  },
   "targets": {},
   "etags": {}
 }

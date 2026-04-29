@@ -36,6 +36,42 @@
       "artifacts": [
         "NexusAidTest"
       ]
+    },
+    "C:\\Users\\blazi\\Downloads\\NexusAid-Web3\\contracts\\NexusDonate.sol": {
+      "lastModificationDate": 1777452413636,
+      "contentHash": "e6e7ceb0cc32f571f090c1ed380428b6",
+      "sourceName": "contracts/NexusDonate.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "NexusDonate"
+      ]
     }
   }
 }
