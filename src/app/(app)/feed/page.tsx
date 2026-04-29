@@ -2,10 +2,10 @@
 
 import { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { EventCard } from '@/components/EventCard';
+import { EventCard } from '@/components/events/EventCard';
 import { getEvents } from '@/services/eventService';
-import MapWrapper from '@/components/MapWrapper';
-import SkillMatchBanner from '@/components/SkillMatchBanner';
+import MapWrapper from '@/components/map/MapWrapper';
+import SkillMatchBanner from '@/components/events/SkillMatchBanner';
 import { useAuth } from '@/context/AuthContext';
 import { CommunityEvent } from '@/types';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getGlobalLeaderboard, getLeaderboardStats, LeaderboardEntry } from '@/services/userService';
-import { getUserAvatar } from '@/lib/avatar';
+import { getUserAvatar } from '@/utils/avatar';
 import Image from 'next/image';
 import Link from 'next/link';
 

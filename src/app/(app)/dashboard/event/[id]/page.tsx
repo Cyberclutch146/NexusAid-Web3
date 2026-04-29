@@ -7,7 +7,7 @@ import { getEventById, getEventVolunteers, updateVolunteerStatus, EventVolunteer
 import { CommunityEvent } from '@/types';
 import { ArrowLeft, Users, Download, Calendar, Mail, CheckCircle, Circle, Trash2, Send, Pencil, AlertTriangle, QrCode, Package } from 'lucide-react';
 import { toast } from 'sonner';
-import PromotionModal from '@/components/PromotionModal';
+import PromotionModal from '@/components/events/PromotionModal';
 import { SentinelAlert } from '@/types/sentinel';
 import { isPointInPolygon, getDistanceMiles } from '@/utils/geo';
 

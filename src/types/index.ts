@@ -19,6 +19,14 @@ export interface UserProfile {
   profileComplete: boolean;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+  // ─── Web3 / Wallet Identity ────────────────────────────────
+  walletAddress?: string;          // Linked MetaMask address (EIP-191 verified)
+  badges?: {
+    tokenId: number;
+    badgeType: string;
+    mintedAt: string;              // ISO timestamp
+    txHash: string;
+  }[];
 }
 
 export type UserProfileCreate = Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>;
@@ -50,9 +58,11 @@ export interface CommunityEvent {
   eventDate?: string;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
-  // ─── Web3 / on-chain fields (optional, set after campaign registration) ─────
-  onChainCampaignId?: number | null;
+  // ─── Web3 / on-chain fields ─────────────────────────────────────────────────
+  onChainCampaignId?: number | null;       // NexusDonate campaign ID (legacy)
   contractAddress?: string | null;
+  escrowCampaignId?: number | null;         // NexusEscrow campaign ID
+  milestoneDescriptions?: string[];          // Milestone labels for escrow
 }
 
 export type CommunityEventCreate = Omit<CommunityEvent, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'status'>;

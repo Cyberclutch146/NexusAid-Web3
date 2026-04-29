@@ -7,7 +7,7 @@ import { updateDonation, addVolunteerSignup, getUserPledge } from '@/services/ev
 import { toast } from 'sonner';
 import { VolunteerModal } from './VolunteerModal';
 import { GoodsPledgeModal } from './GoodsPledgeModal';
-import { DonateWithCrypto } from './DonateWithCrypto';
+import { DonateWithCrypto } from '../web3/DonateWithCrypto';
 import { CampaignStats } from './CampaignStats';
 
 declare global {

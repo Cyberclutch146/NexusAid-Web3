@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { MobileBottomNav, MobileHeader } from '@/components/Navigation';
-import NavbarTop from '@/components/Navbar_top';
+import { MobileBottomNav, MobileHeader } from '@/components/layout/Navigation';
+import NavbarTop from '@/components/layout/Navbar_top';
 import { Toaster } from 'sonner';
-import DynamicBackground from '@/components/DynamicBackground';
+import DynamicBackground from '@/components/ui/DynamicBackground';
 import AIChatWidget from '@/components/AIChatWidget';
 import AppAccessGate from '@/components/AppAccessGate';
 

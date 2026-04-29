@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { updateUserProfile } from '@/services/userService';
 import { uploadImage } from '@/services/storageService';
 import { toast } from 'sonner';
-import { getUserAvatar, DEFAULT_AVATAR } from '@/lib/avatar';
+import { getUserAvatar, DEFAULT_AVATAR } from '@/utils/avatar';
 
 export default function ProfilePage() {
   const { user, profile } = useAuth();

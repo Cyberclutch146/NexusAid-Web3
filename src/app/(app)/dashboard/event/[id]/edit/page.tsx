@@ -6,8 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { getEventById, updateEvent, ADMIN_EMAILS } from '@/services/eventService';
 import { uploadImage } from '@/services/storageService';
 import { toast } from 'sonner';
-import LocationPickerWrapper from '@/components/LocationPickerWrapper';
-import DateTimePicker from '@/components/DateTimePicker';
+import LocationPickerWrapper from '@/components/map/LocationPickerWrapper';
+import DateTimePicker from '@/components/ui/DateTimePicker';
 import { ArrowLeft } from 'lucide-react';
 
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {

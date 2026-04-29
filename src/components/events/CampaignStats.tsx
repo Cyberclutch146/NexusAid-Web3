@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { BrowserProvider, JsonRpcProvider, formatEther } from 'ethers';
-import { getReadOnlyContract, CONTRACT_ADDRESS } from '@/lib/contract';
+import { getReadOnlyContract, CONTRACT_ADDRESS } from '@/lib/web3/contract';
 
 interface Donation {
   donor: string;

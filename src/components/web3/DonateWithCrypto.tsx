@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useWallet } from '@/hooks/useWallet';
-import { getContract, parseEther, formatEther } from '@/lib/contract';
+import { getContract, parseEther, formatEther } from '@/lib/web3/contract';
 
 interface Props {
   campaignId: number;

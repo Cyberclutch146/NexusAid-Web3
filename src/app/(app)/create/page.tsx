@@ -6,9 +6,9 @@ import { useAuth } from '@/context/AuthContext';
 import { createEvent } from '@/services/eventService';
 import { uploadImage } from '@/services/storageService';
 import { toast } from 'sonner';
-import LocationPickerWrapper from '@/components/LocationPickerWrapper';
-import DateTimePicker from '@/components/DateTimePicker';
-import PromotionModal from '@/components/PromotionModal';
+import LocationPickerWrapper from '@/components/map/LocationPickerWrapper';
+import DateTimePicker from '@/components/ui/DateTimePicker';
+import PromotionModal from '@/components/events/PromotionModal';
 import { useCreateCampaign } from '@/hooks/useCreateCampaign';
 
 export default function CreateEventPage() {

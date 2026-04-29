@@ -5,7 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { BrowserProvider } from 'ethers';
-import { getContract } from '@/lib/contract';
+import { getContract } from '@/lib/web3/contract';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 

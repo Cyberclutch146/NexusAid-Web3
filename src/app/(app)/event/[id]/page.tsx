@@ -1,9 +1,9 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { ProgressBar } from '@/components/ProgressBar';
-import { DonationPanel } from '@/components/DonationPanel';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { DonationPanel } from '@/components/events/DonationPanel';
 import { ChatBox } from '@/components/ai/ChatBox';
-import { VolunteerLeaderboard } from '@/components/VolunteerLeaderboard';
+import { VolunteerLeaderboard } from '@/components/events/VolunteerLeaderboard';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, use, useCallback } from 'react';

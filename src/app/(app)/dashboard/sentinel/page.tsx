@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { SentinelAlert } from '@/types/sentinel';
-import SentinelAlertFeed from '@/components/SentinelAlertFeed';
+import SentinelAlertFeed from '@/components/map/SentinelAlertFeed';
 import { Activity, Map as MapIcon, Loader2, ShieldAlert, Radio, TriangleAlert, Waves, RefreshCw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import dynamic from 'next/dynamic';
@@ -18,7 +18,7 @@ const TileLayer = dynamic(
   { ssr: false }
 );
 const SentinelMapOverlay = dynamic(
-  () => import('@/components/SentinelMapOverlay'),
+  () => import('@/components/map/SentinelMapOverlay'),
   { ssr: false }
 );
 

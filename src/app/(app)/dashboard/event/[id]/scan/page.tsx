@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 
 // Dynamically import ScannerView to avoid SSR issues with html5-qrcode
-const ScannerView = dynamic(() => import('@/components/ScannerView'), { ssr: false });
+const ScannerView = dynamic(() => import('@/components/events/ScannerView'), { ssr: false });
 
 export default function ScanPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
