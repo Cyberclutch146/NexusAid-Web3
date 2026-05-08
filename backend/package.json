@@ -1,0 +1,15 @@
+{
+  "name": "nexusaid-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend services for NexusAid Platform (Firebase Cloud Functions, Webhooks, etc.)",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^13.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  }
+}
