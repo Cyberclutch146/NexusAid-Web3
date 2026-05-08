@@ -165,9 +165,9 @@ NexusAid-Web3/
 │   └── package.json                   # Contracts dependencies
 │
 ├── documentation/                     # All project documentation
-│   ├── README.md                      # This file
 │   ├── PROJECT_STATUS.md              # Current development status
-│   └── ROADMAP.md                     # 30-feature strategic roadmap
+│   ├── ROADMAP.md                     # 42-feature strategic roadmap
+│   └── DEPLOY_GUIDE.md                # Beginner's deployment guide
 │
 ├── package.json                       # Root workspace configuration
 ├── .gitignore                         # Monorepo-wide ignore rules
@@ -495,15 +495,15 @@ Connected to Chain ID: 31337
 4. Push to your fork and open a Pull Request.
 
 Please refer to:
-- **[DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md)** — 🆕 **Complete beginner's guide.** Zero-to-running in 15 minutes, no Web3 experience required.
-- **[PROJECT_STATUS.md](./PROJECT_STATUS.md)** — Current blockers, recent achievements, and immediate next steps.
-- **[ROADMAP.md](./ROADMAP.md)** — Strategic 42-feature roadmap covering Account Abstraction, ZK-KYC, DAO governance, and more.
+- **[DEPLOY_GUIDE.md](./documentation/DEPLOY_GUIDE.md)** — 🆕 **Complete beginner's guide.** Zero-to-running in 15 minutes, no Web3 experience required.
+- **[PROJECT_STATUS.md](./documentation/PROJECT_STATUS.md)** — Current blockers, recent achievements, and immediate next steps.
+- **[ROADMAP.md](./documentation/ROADMAP.md)** — Strategic 42-feature roadmap covering Account Abstraction, ZK-KYC, DAO governance, and more.
 
 ---
 
 ## License
 
-This project is licensed under the **MIT License**. See [LICENSE](../LICENSE) for details.
+This project is licensed under the **MIT License**.
 
 ---
 
