@@ -52,7 +52,7 @@ export function useWallet(): WalletState {
       try {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' }) as string[];
         if (accounts.length > 0) {
-          const provider = new BrowserProvider(window.ethereum);
+          const provider = new BrowserProvider(window.ethereum, 'any');
           const s = await provider.getSigner();
           setAddress(accounts[0]);
           setSigner(s);
@@ -76,8 +76,18 @@ export function useWallet(): WalletState {
         setAddress(accounts[0]);
       }
     };
+    
+    const handleChainChanged = () => {
+      window.location.reload();
+    };
+
     window.ethereum.on('accountsChanged', handleChange);
-    return () => window.ethereum?.removeListener('accountsChanged', handleChange);
+    window.ethereum.on('chainChanged', handleChainChanged);
+    
+    return () => {
+      window.ethereum?.removeListener('accountsChanged', handleChange);
+      window.ethereum?.removeListener('chainChanged', handleChainChanged);
+    };
   }, []);
 
   const connect = useCallback(async () => {
@@ -89,29 +99,33 @@ export function useWallet(): WalletState {
 
     setIsConnecting(true);
     try {
-      // Switch to Polygon Amoy
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const targetChainId = isLocal ? '0x7a69' : '0x13882'; // 31337 or 80002
+      const targetName = isLocal ? 'Hardhat Local' : 'Polygon Amoy Testnet';
+
+      // Switch to correct network
       try {
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x13882' }], // 80002
+          params: [{ chainId: targetChainId }],
         });
       } catch (switchError: any) {
         if (switchError.code === 4902) {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [{
-              chainId:           '0x13882',
-              chainName:         'Polygon Amoy Testnet',
-              nativeCurrency:    { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-              rpcUrls:           ['https://rpc-amoy.polygon.technology/'],
-              blockExplorerUrls: ['https://amoy.polygonscan.com/'],
+              chainId:           targetChainId,
+              chainName:         targetName,
+              nativeCurrency:    { name: isLocal ? 'ETH' : 'MATIC', symbol: isLocal ? 'ETH' : 'MATIC', decimals: 18 },
+              rpcUrls:           [isLocal ? 'http://127.0.0.1:8545' : 'https://rpc-amoy.polygon.technology/'],
+              blockExplorerUrls: isLocal ? [] : ['https://amoy.polygonscan.com/'],
             }],
           });
         }
       }
 
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' }) as string[];
-      const provider = new BrowserProvider(window.ethereum);
+      const provider = new BrowserProvider(window.ethereum, 'any');
       const s = await provider.getSigner();
 
       setAddress(accounts[0]);

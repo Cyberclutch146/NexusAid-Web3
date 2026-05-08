@@ -20,6 +20,26 @@ export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
     if (!signer || !amount || parseFloat(amount) <= 0) return;
     try {
       setStatus('pending');
+
+      // 1. Verify network before attempting anything
+      const network = await signer.provider.getNetwork();
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const expectedChainId = isLocal ? 31337n : 80002n;
+      
+      if (network.chainId !== expectedChainId) {
+        // Automatically request network switch
+        try {
+          await window.ethereum?.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: isLocal ? '0x7a69' : '0x13882' }],
+          });
+          // Wait for a second for the provider to catch up
+          await new Promise(r => setTimeout(r, 1000));
+        } catch (switchError: any) {
+          throw new Error(`Please switch MetaMask to ${isLocal ? 'Hardhat Local (31337)' : 'Amoy (80002)'} to donate.`);
+        }
+      }
+
       const contract = getContract(signer);
       const tx = await contract.donate(campaignId, {
         value: parseEther(amount),

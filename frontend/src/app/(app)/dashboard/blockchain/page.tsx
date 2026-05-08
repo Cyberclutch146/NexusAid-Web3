@@ -80,6 +80,7 @@ export default function BlockchainDashboardPage() {
   const [maticBalance, setMaticBalance]   = useState<string | null>(null);
   const [badgeCount,   setBadgeCount]     = useState<number | null>(null);
   const [totalMinted,  setTotalMinted]    = useState<number | null>(null);
+  const [networkInfo,  setNetworkInfo]    = useState({ name: 'Checking...', chainId: 0 });
   const [loadingStats, setLoadingStats]   = useState(false);
   const [isClaiming,   setIsClaiming]     = useState(false);
 
@@ -128,6 +129,13 @@ export default function BlockchainDashboardPage() {
       setLoadingStats(true);
       try {
         const provider = new JsonRpcProvider(AMOY_RPC);
+
+        // Network detection
+        const network = await provider.getNetwork();
+        setNetworkInfo({
+          name: network.chainId === 31337n ? 'Hardhat' : network.chainId === 80002n ? 'Amoy' : 'Unknown',
+          chainId: Number(network.chainId)
+        });
 
         // MATIC balance
         const balance = await provider.getBalance(walletAddr);
@@ -313,8 +321,8 @@ export default function BlockchainDashboardPage() {
               className="lg:col-span-1 lg:row-span-1"
               icon="account_balance"
               label="Network"
-              value="Amoy"
-              sub="Chain ID: 80002"
+              value={networkInfo.name}
+              sub={`Chain ID: ${networkInfo.chainId}`}
               color="#3b82f6"
             />
           </>
