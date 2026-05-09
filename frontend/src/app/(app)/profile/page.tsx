@@ -9,10 +9,15 @@ import { toast } from 'sonner';
 import { getUserAvatar, DEFAULT_AVATAR } from '@/utils/avatar';
 import { useWallet } from '@/hooks/useWallet';
 import { BadgeDisplay } from '@/components/web3/BadgeDisplay';
+import { BrowserProvider, formatEther, parseEther, Contract } from 'ethers';
 
 export default function ProfilePage() {
   const { user, profile } = useAuth();
-  const { address, isConnecting, isLinking, isLinked, connect, linkWallet } = useWallet();
+  const { address, signer, isConnecting, isLinking, isLinked, connect, linkWallet } = useWallet();
+
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [tipAmount, setTipAmount] = useState('0.01');
+  const [isTipping, setIsTipping] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,6 +45,59 @@ export default function ProfilePage() {
       setAvailability(profile.availability || 'anytime');
     }
   }, [profile, isEditing]);
+
+  // Fetch wallet balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!address || !window.ethereum) return;
+      try {
+        const provider = new BrowserProvider(window.ethereum, 'any');
+        const bal = await provider.getBalance(address);
+        setWalletBalance(parseFloat(formatEther(bal)).toFixed(4));
+      } catch {
+        setWalletBalance(null);
+      }
+    };
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 15000); // refresh every 15s
+    return () => clearInterval(interval);
+  }, [address]);
+
+  // Quick tip/donate to the NexusDonate contract
+  const handleQuickTip = async () => {
+    if (!signer || !address) {
+      toast.error('Connect your wallet first');
+      return;
+    }
+    const contractAddr = process.env.NEXT_PUBLIC_DONATE_CONTRACT;
+    if (!contractAddr) {
+      toast.error('Donate contract not configured');
+      return;
+    }
+
+    setIsTipping(true);
+    const loadingToast = toast.loading(`Sending ${tipAmount} ETH...`);
+    try {
+      const tx = await signer.sendTransaction({
+        to: contractAddr,
+        value: parseEther(tipAmount),
+      });
+      await tx.wait();
+      toast.success(`Sent ${tipAmount} ETH! Tx: ${tx.hash.slice(0, 10)}…`, { id: loadingToast });
+      // Refresh balance
+      const provider = new BrowserProvider(window.ethereum!, 'any');
+      const bal = await provider.getBalance(address);
+      setWalletBalance(parseFloat(formatEther(bal)).toFixed(4));
+    } catch (err: any) {
+      if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+        toast.error('Transaction rejected', { id: loadingToast });
+      } else {
+        toast.error(`Failed: ${err.message?.slice(0, 80)}`, { id: loadingToast });
+      }
+    } finally {
+      setIsTipping(false);
+    }
+  };
 
   if (!user || !profile) {
     return (
@@ -530,7 +588,8 @@ export default function ProfilePage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-6">
+        {/* Row 1: Wallet Identity + MATIC Balance */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Wallet Connection Card */}
           <div 
             className="premium-glass rounded-[24px] p-6 flex flex-col justify-between"
@@ -604,31 +663,130 @@ export default function ProfilePage() {
             </p>
           </div>
 
-          {/* Badges Display Card */}
-          <div className="premium-glass rounded-[24px] p-6">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Earned Badges (SBTs)</p>
-              {isLinked && (
-                <button 
-                  onClick={() => window.location.href = '/dashboard/blockchain'}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider"
-                >
-                  Manage Badges
-                </button>
+          {/* MATIC / ETH Balance & Quick Donate Panel */}
+          <div
+            className="premium-glass rounded-[24px] p-6 flex flex-col justify-between relative overflow-hidden"
+            style={{ background: 'linear-gradient(145deg, var(--glass-bg), rgba(130, 71, 229, 0.06))' }}
+          >
+            {/* Decorative polygon icon */}
+            <div className="absolute -top-6 -right-6 text-[120px] opacity-[0.04] leading-none pointer-events-none select-none">
+              ⬡
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-4">Wallet Balance</p>
+
+              {(address || profile?.walletAddress) ? (
+                <div className="space-y-5">
+                  {/* Balance Display */}
+                  <div className="text-center py-4">
+                    <p className="font-headline text-5xl font-black text-on-surface mb-1">
+                      {walletBalance !== null ? walletBalance : '—'}
+                    </p>
+                    <p className="text-sm font-bold uppercase tracking-wider" style={{ color: '#8247e5' }}>
+                      ETH / MATIC
+                    </p>
+                  </div>
+
+                  {/* Quick Tip Amounts */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">Quick Donate</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {['0.001', '0.01', '0.05', '0.1'].map((amt) => (
+                        <button
+                          key={amt}
+                          onClick={() => setTipAmount(amt)}
+                          className="py-2.5 rounded-lg text-sm font-bold transition-all duration-200 hover:-translate-y-0.5"
+                          style={tipAmount === amt ? {
+                            background: 'linear-gradient(135deg, #8247e5, #6c3bbf)',
+                            color: '#fff',
+                            boxShadow: '0 2px 8px rgba(130,71,229,0.3)',
+                          } : {
+                            background: 'var(--glass-bg)',
+                            border: '1px solid var(--glass-border)',
+                            color: 'var(--color-on-surface)',
+                          }}
+                        >
+                          {amt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom amount + Send */}
+                  <div className="flex gap-3">
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0.001"
+                      value={tipAmount}
+                      onChange={(e) => setTipAmount(e.target.value)}
+                      className="flex-1 min-w-0 rounded-xl border-0 py-3 px-4 text-sm font-mono font-bold text-on-surface focus:ring-2 focus:ring-purple-500/30 transition-all"
+                      style={{
+                        background: 'var(--glass-bg)',
+                        border: '1px solid var(--glass-border)',
+                      }}
+                    />
+                    <button
+                      onClick={handleQuickTip}
+                      disabled={isTipping || !signer}
+                      className="px-6 py-3 rounded-xl text-sm font-bold text-white transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0 whitespace-nowrap"
+                      style={{
+                        background: 'linear-gradient(135deg, #8247e5, #6c3bbf)',
+                        boxShadow: '0 3px 12px rgba(130,71,229,0.25)',
+                      }}
+                    >
+                      {isTipping ? (
+                        <span className="animate-spin inline-block">⬡</span>
+                      ) : (
+                        '⬡ Send'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(130,71,229,0.1)' }}>
+                    <span className="text-3xl">⬡</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-on-surface mb-2">No Wallet Connected</h3>
+                  <p className="text-xs text-on-surface-variant">
+                    Connect wallet to view balance and make quick donations
+                  </p>
+                </div>
               )}
             </div>
-            
-            {(address || profile?.walletAddress) ? (
-              <BadgeDisplay walletAddress={(address || profile?.walletAddress) as string} />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 border border-glass border-dashed rounded-[20px]">
-                <span className="material-symbols-outlined text-[48px] text-on-surface-variant/20 mb-3">military_tech</span>
-                <p className="text-sm font-medium text-on-surface-variant">
-                  Connect your wallet to view your reputation badges
-                </p>
-              </div>
+
+            <p className="text-[10px] text-on-surface-variant/60 mt-5 italic relative z-10">
+              Testnet tokens have no real value. Use Polygon faucet for test MATIC.
+            </p>
+          </div>
+        </div>
+
+        {/* Row 2: Badges — Full Width */}
+        <div className="premium-glass rounded-[24px] p-6">
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Earned Badges (SBTs)</p>
+            {isLinked && (
+              <button 
+                onClick={() => window.location.href = '/dashboard/blockchain'}
+                className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider"
+              >
+                Manage Badges →
+              </button>
             )}
           </div>
+          
+          {(address || profile?.walletAddress) ? (
+            <BadgeDisplay walletAddress={(address || profile?.walletAddress) as string} />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center py-10 border border-glass border-dashed rounded-[20px]">
+              <span className="material-symbols-outlined text-[48px] text-on-surface-variant/20 mb-3">military_tech</span>
+              <p className="text-sm font-medium text-on-surface-variant">
+                Connect your wallet to view your reputation badges
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </main>

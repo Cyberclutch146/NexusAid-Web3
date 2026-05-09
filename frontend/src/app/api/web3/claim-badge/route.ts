@@ -3,12 +3,12 @@ import { JsonRpcProvider, Wallet, Contract } from 'ethers';
 import { adminDb, adminStorage, adminAuth } from '@/lib/firebase-admin';
 import { REPUTATION_ABI } from '@/lib/web3/reputationContract';
 
-const AMOY_RPC          = process.env.POLYGON_AMOY_RPC_URL || 'https://rpc-amoy.polygon.technology';
+const RPC_URL           = process.env.POLYGON_AMOY_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || 'http://127.0.0.1:8545';
 const REPUTATION_ADDRESS = process.env.NEXT_PUBLIC_REPUTATION_CONTRACT!;
 const DEPLOYER_KEY       = process.env.DEPLOYER_PRIVATE_KEY!;
 
 function getServerSigner() {
-  const provider = new JsonRpcProvider(AMOY_RPC);
+  const provider = new JsonRpcProvider(RPC_URL);
   return new Wallet(DEPLOYER_KEY, provider);
 }
 
@@ -23,17 +23,13 @@ const BADGE_META: Record<string, { name: string; description: string; emoji: str
   organizer:      { name: 'Organizer',      description: 'Successfully organized a NexusAid campaign',        emoji: '🏅' },
 };
 
-async function uploadMetadataToFirebase(badgeType: string, recipientAddress: string, reason: string): string {
-  if (!adminStorage) throw new Error("Firebase Admin Storage not initialized");
-  
+async function uploadMetadataToFirebase(badgeType: string, recipientAddress: string, reason: string): Promise<string> {
   const meta = BADGE_META[badgeType] || {
     name: badgeType.replace(/_/g, ' '),
     description: reason,
     emoji: '⭐',
   };
 
-  const svgContent = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' dominant-baseline='middle' text-anchor='middle' font-size='60'>${meta.emoji}</text></svg>`;
-  
   const metadata = {
     name: `NexusAid — ${meta.name}`,
     description: meta.description,
@@ -42,33 +38,34 @@ async function uploadMetadataToFirebase(badgeType: string, recipientAddress: str
     recipient: recipientAddress,
     issuer: 'NexusAid Platform',
     platform: 'https://nexusaid.app',
-    network: 'Polygon Amoy Testnet',
+    network: 'Polygon / Hardhat Local',
     timestamp: new Date().toISOString(),
-    // We will update the image URL after uploading the SVG
-    image: '', 
+    image: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' dominant-baseline='middle' text-anchor='middle' font-size='60'>${meta.emoji}</text></svg>`,
   };
 
-  const bucket = adminStorage.bucket();
-  const timestamp = Date.now();
-  
-  // Upload SVG
-  const svgFile = bucket.file(`badges/${recipientAddress}/${badgeType}-${timestamp}.svg`);
-  await svgFile.save(svgContent, {
-    metadata: { contentType: 'image/svg+xml' },
-    public: true
-  });
-  const svgUrl = svgFile.publicUrl();
-  metadata.image = svgUrl;
+  // Try Firebase Storage first; fall back to a data-URI if bucket not configured
+  if (adminStorage) {
+    try {
+      const bucketName = process.env.FIREBASE_STORAGE_BUCKET
+        || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+      const bucket = bucketName ? adminStorage.bucket(bucketName) : adminStorage.bucket();
+      const timestamp = Date.now();
+      const jsonFile = bucket.file(`badges/${recipientAddress.toLowerCase()}/${badgeType}-${timestamp}.json`);
+      await jsonFile.save(JSON.stringify(metadata, null, 2), {
+        metadata: { contentType: 'application/json' },
+        public: true,
+      });
+      return jsonFile.publicUrl();
+    } catch (err: any) {
+      console.warn('[claim-badge] Storage upload failed, using inline metadata:', err.message);
+    }
+  }
 
-  // Upload JSON
-  const jsonFile = bucket.file(`badges/${recipientAddress}/${badgeType}-${timestamp}.json`);
-  await jsonFile.save(JSON.stringify(metadata, null, 2), {
-    metadata: { contentType: 'application/json' },
-    public: true
-  });
-  
-  return jsonFile.publicUrl();
+  // Fallback: encode metadata as a data URI (works without any Storage bucket)
+  const encoded = Buffer.from(JSON.stringify(metadata)).toString('base64');
+  return `data:application/json;base64,${encoded}`;
 }
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -101,22 +98,49 @@ export async function POST(req: NextRequest) {
 
     const userData = userSnap.data();
     const volunteerHours = userData?.volunteerHours || 0;
-    const totalDonated = userData?.totalDonated || 0;
     const existingBadges: any[] = userData?.badges || [];
-    const ownedBadgeTypes = new Set(existingBadges.map(b => b.badgeType));
+    const ownedBadgeTypes = new Set(existingBadges.map((b: any) => b.badgeType));
 
-    // For simplicity, we skip campaign count in this demo and focus on hours & donations
+    // Start with totalDonated from the user's own profile
+    let totalDonated: number = parseFloat(userData?.totalDonated) || 0;
+
+    // Also check if there is a wallet stub (created when user donated before linking)
+    const recipientLower = recipientAddress.toLowerCase();
+    const stubSnap = await adminDb.collection('users').doc(`wallet_${recipientLower}`).get();
+    if (stubSnap.exists) {
+      const stubDonated = parseFloat(stubSnap.data()?.totalDonated) || 0;
+      totalDonated += stubDonated;
+      // Merge the stub's totalDonated into the real user profile and delete the stub
+      await userRef.update({
+        totalDonated: adminDb.constructor.name === 'Firestore'
+          ? totalDonated  // plain number merge
+          : totalDonated,
+        walletAddress: recipientLower,
+      });
+      await stubSnap.ref.delete();
+      console.log(`[claim-badge] Merged wallet stub (+${stubDonated} ETH) into user ${userId}`);
+    }
+
+
     const eligibleBadges: string[] = [];
 
+    // first_donation: any on-chain donation
     if (totalDonated > 0 && !ownedBadgeTypes.has('first_donation')) {
       eligibleBadges.push('first_donation');
     }
 
-    if (volunteerHours >= 5 && !ownedBadgeTypes.has('bronze')) eligibleBadges.push('bronze');
-    if (volunteerHours >= 20 && !ownedBadgeTypes.has('silver')) eligibleBadges.push('silver');
-    if (volunteerHours >= 35 && !ownedBadgeTypes.has('gold')) eligibleBadges.push('gold');
-    if (volunteerHours >= 60 && !ownedBadgeTypes.has('platinum')) eligibleBadges.push('platinum');
-    if (volunteerHours >= 100 && !ownedBadgeTypes.has('master')) eligibleBadges.push('master');
+    // Tiers awarded by EITHER volunteer hours OR total ETH donated
+    if ((volunteerHours >= 5 || totalDonated >= 0.01) && !ownedBadgeTypes.has('bronze'))
+      eligibleBadges.push('bronze');
+    if ((volunteerHours >= 20 || totalDonated >= 0.05) && !ownedBadgeTypes.has('silver'))
+      eligibleBadges.push('silver');
+    if ((volunteerHours >= 35 || totalDonated >= 0.1) && !ownedBadgeTypes.has('gold'))
+      eligibleBadges.push('gold');
+    if ((volunteerHours >= 60 || totalDonated >= 0.5) && !ownedBadgeTypes.has('platinum'))
+      eligibleBadges.push('platinum');
+    if ((volunteerHours >= 100 || totalDonated >= 1.0) && !ownedBadgeTypes.has('master'))
+      eligibleBadges.push('master');
+
 
     if (eligibleBadges.length === 0) {
       return NextResponse.json({ success: true, message: 'No new eligible badges found.', claimed: [] });

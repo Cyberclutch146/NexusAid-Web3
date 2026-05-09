@@ -37,7 +37,9 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
         const code = await contract.runner?.provider?.getCode(address);
         
         if (!code || code === '0x') {
-          throw new Error('Reputation contract not found at this address. Please ensure it is deployed to the current network.');
+          // Contract not deployed yet (e.g., local node just started) — show empty state silently
+          setLoading(false);
+          return;
         }
 
         const tokenIds: bigint[] = await contract.getBadgesByOwner(walletAddress);

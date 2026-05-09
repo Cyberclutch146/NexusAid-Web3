@@ -13,11 +13,15 @@
     "start:frontend": "npm run start --workspace=frontend",
     "node:contracts": "npm run node --workspace=contracts",
     "deploy:local": "npm run deploy:local --workspace=contracts",
-    "dev:backend": "npm run dev --workspace=backend",
+    "dev:backend": "powershell -Command \"$env:GOOGLE_APPLICATION_CREDENTIALS='../frontend/serviceAccountKey.json'; npm run dev --workspace=backend\"",
     "start:backend": "npm run start --workspace=backend",
     "launch": "powershell -ExecutionPolicy Bypass -File ./launch-all.ps1",
-    "deploy:auto": "powershell -Command \"do { Write-Host 'Waiting for node...'; Start-Sleep -Seconds 2 } until ((Test-NetConnection localhost -Port 8545).TcpTestSucceeded); npm run deploy:local\"",
-    "dev:all": "concurrently -n \"NODE,DEPLOY,BACK,FRONT\" -c \"yellow,blue,green,magenta\" \"npm run node:contracts\" \"npm run deploy:auto\" \"npm run dev:backend\" \"npm run dev:frontend\""
+    "deploy:auto": "powershell -Command \"do { Write-Host 'Waiting for node...'; Start-Sleep -Seconds 2 } until ((Test-NetConnection 127.0.0.1 -Port 8545).TcpTestSucceeded); npm run deploy:local\"",
+    "sync-env": "node scripts/sync-env.js",
+    "dev:sync": "powershell -Command \"$env:GOOGLE_APPLICATION_CREDENTIALS='./frontend/serviceAccountKey.json'; npm run deploy:auto && npm run sync-env && npm run db:reset-web3\"",
+    "dev:all": "node scripts/dev-start.js",
+    "dev:app": "concurrently -n \"BACK,FRONT\" -c \"green,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "db:reset-web3": "node scripts/reset-web3-ids.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

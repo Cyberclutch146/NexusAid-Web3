@@ -33,8 +33,10 @@ function extractLogMeta(eventOrLog) {
 donateContract.on('DonationMade', async (campaignId, donor, amount, eventObj) => {
   const { txHash, blockNumber } = extractLogMeta(eventObj);
   const campaignIdStr = campaignId.toString();
+  const donorAddr     = donor.toLowerCase();
+  const ethAmount     = parseFloat(formatEther(amount));
 
-  console.log(`\n📥 DonationMade — Campaign #${campaignIdStr} | Donor: ${donor} | Amount: ${formatEther(amount)} ETH`);
+  console.log(`\n📥 DonationMade — Campaign #${campaignIdStr} | Donor: ${donorAddr} | Amount: ${ethAmount} ETH`);
 
   try {
     const batch = db.batch();
@@ -43,7 +45,7 @@ donateContract.on('DonationMade', async (campaignId, donor, amount, eventObj) =>
     const donationRef = db.collection('donations').doc();
     batch.set(donationRef, {
       campaignId:  campaignIdStr,
-      donor:       donor.toLowerCase(),
+      donor:       donorAddr,
       amount:      formatEther(amount),
       amountWei:   amount.toString(),
       txHash,
@@ -69,6 +71,38 @@ donateContract.on('DonationMade', async (campaignId, donor, amount, eventObj) =>
 
     await batch.commit();
     console.log(`   ✅ Donation doc created: ${donationRef.id}`);
+
+    // 3. Update the donor's user profile (totalDonated) so badge eligibility works
+    try {
+      const usersSnap = await db.collection('users')
+        .where('walletAddress', '==', donorAddr)
+        .limit(1)
+        .get();
+
+      if (!usersSnap.empty) {
+        // User found — increment their totalDonated
+        const userRef = usersSnap.docs[0].ref;
+        await userRef.update({
+          totalDonated:  admin.firestore.FieldValue.increment(ethAmount),
+          lastDonatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`   ✅ Updated totalDonated for user ${usersSnap.docs[0].id} (+${ethAmount} ETH)`);
+      } else {
+        // No Firebase user linked to this wallet yet — create a stub so totalDonated is tracked
+        const stubRef = db.collection('users').doc(`wallet_${donorAddr}`);
+        await stubRef.set({
+          walletAddress:  donorAddr,
+          totalDonated:   admin.firestore.FieldValue.increment(ethAmount),
+          lastDonatedAt:  admin.firestore.FieldValue.serverTimestamp(),
+          isWalletStub:   true,  // flag so we can merge this later when user signs up
+          createdAt:      admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        console.log(`   ⚠️  No linked user found. Created donation stub for wallet: ${donorAddr}`);
+      }
+    } catch (userErr) {
+      console.warn('   ⚠️  Could not update user totalDonated:', userErr.message);
+    }
+
   } catch (err) {
     console.error('   ❌ Failed to write DonationMade to Firestore:', err);
   }
