@@ -47,7 +47,8 @@ export function CampaignStats({ campaignId }: Props) {
 
         const contract = await getReadOnlyDonateContract();
 
-        const [, , raised, active] = await contract.getCampaign(campaignId);
+        // Destructure: firebaseEventId, metadataCID, organizer, totalRaised, active
+        const [, , , raised, active] = await contract.getCampaign(campaignId);
         if (cancelled) return;
 
         if (!active && Number(raised) === 0) {

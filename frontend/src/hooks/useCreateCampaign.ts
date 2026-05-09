@@ -33,7 +33,8 @@ export function useCreateCampaign() {
       const contract = getContract(signer);
 
       setStatus('pending'); // tx submitted
-      const tx = await contract.createCampaign(firebaseEventId);
+      // Passing an empty string for metadataCID for now until IPFS upload is fully wired up in the UI
+      const tx = await contract.createCampaign(firebaseEventId, "");
       const receipt = await tx.wait();
 
       // Parse the CampaignCreated event to get the on-chain campaign ID

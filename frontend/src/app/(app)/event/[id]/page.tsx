@@ -4,6 +4,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { DonationPanel } from '@/components/events/DonationPanel';
 import { ChatBox } from '@/components/ai/ChatBox';
 import { VolunteerLeaderboard } from '@/components/events/VolunteerLeaderboard';
+import { MilestoneTracker } from '@/components/web3/MilestoneTracker';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, use, useCallback } from 'react';
@@ -411,6 +412,17 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
             onChainCampaignId={event.onChainCampaignId ?? null}
             onActionComplete={refreshEvent}
           />
+          
+          {/* Milestone Escrow UI */}
+          {event.onChainCampaignId != null && (
+            <div className="mt-6">
+              <MilestoneTracker 
+                escrowCampaignId={event.onChainCampaignId}
+                organizerId={event.organizerId}
+                isAdmin={isAdmin}
+              />
+            </div>
+          )}
         </div>
       </div>
     </main>

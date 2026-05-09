@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import PromotionModal from '@/components/events/PromotionModal';
 import { SentinelAlert } from '@/types/sentinel';
 import { isPointInPolygon, getDistanceMiles } from '@/utils/geo';
+import { MilestoneTracker } from '@/components/web3/MilestoneTracker';
 
 export default function OrganizerEventPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -211,6 +212,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
   const currentVols = event.needs?.volunteers?.current || 0;
   const goalVols = event.needs?.volunteers?.goal || 1;
   const progress = Math.min(100, Math.round((currentVols / goalVols) * 100));
+  const isAdmin = ADMIN_EMAILS.includes(user?.email || '');
 
   const intersectingAlerts = alerts.filter((alert: SentinelAlert) => {
     if (!eventLat || !eventLng) return false;
@@ -385,6 +387,17 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 animate-fade-in-up delay-300">
         {/* Left Column: Stats */}
         <div className="md:col-span-1 space-y-6">
+          
+          {event.onChainCampaignId != null && (
+            <div className="premium-glass p-6">
+              <MilestoneTracker 
+                escrowCampaignId={event.onChainCampaignId}
+                organizerId={event.organizerId}
+                isAdmin={isAdmin}
+              />
+            </div>
+          )}
+
           <div className="premium-glass p-6">
             <h3 className="font-serif text-lg font-bold mb-4 flex items-center gap-2 text-on-surface">
               <Users size={20} style={{ color: 'var(--color-primary-base)' }} />
