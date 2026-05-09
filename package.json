@@ -8,13 +8,18 @@
     "contracts"
   ],
   "scripts": {
-    "dev:frontend":   "npm run dev --workspace=frontend",
+    "dev:frontend": "npm run dev --workspace=frontend",
     "build:frontend": "npm run build --workspace=frontend",
     "start:frontend": "npm run start --workspace=frontend",
     "node:contracts": "npm run node --workspace=contracts",
-    "deploy:local":   "npm run deploy:local --workspace=contracts",
-    "dev:backend":    "npm run dev --workspace=backend",
-    "start:backend":  "npm run start --workspace=backend",
-    "launch":         "powershell -ExecutionPolicy Bypass -File ./launch-all.ps1"
+    "deploy:local": "npm run deploy:local --workspace=contracts",
+    "dev:backend": "npm run dev --workspace=backend",
+    "start:backend": "npm run start --workspace=backend",
+    "launch": "powershell -ExecutionPolicy Bypass -File ./launch-all.ps1",
+    "deploy:auto": "powershell -Command \"do { Write-Host 'Waiting for node...'; Start-Sleep -Seconds 2 } until ((Test-NetConnection localhost -Port 8545).TcpTestSucceeded); npm run deploy:local\"",
+    "dev:all": "concurrently -n \"NODE,DEPLOY,BACK,FRONT\" -c \"yellow,blue,green,magenta\" \"npm run node:contracts\" \"npm run deploy:auto\" \"npm run dev:backend\" \"npm run dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
