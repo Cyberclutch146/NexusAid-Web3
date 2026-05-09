@@ -346,39 +346,67 @@ You can verify it by:
 
 ## 13. Restarting After a Break
 
-If you close everything and come back later, here's exactly what to do:
+If you close everything and come back later, you have two ways to restart: the **Manual Way** (good for learning) or the **Fast Way** (best for daily work).
 
-### Step A: Start the blockchain again
+### Option A: The Fast Way (Automated)
+
+We've created scripts to start everything with a single command. Open **one** terminal in the root `NexusAid-Web3` folder:
+
+1. **Start Everything:**
+   ```bash
+   npm run dev:all
+   ```
+   *This starts the node, waits for it to be ready, deploys your contracts, starts the backend, and starts the frontend all in one window.*
+
+2. **If you restarted your PC:**
+   After running `dev:all`, open a second terminal and run:
+   ```bash
+   npm run db:reset-web3
+   ```
+   *This cleans up your database so your old events can be re-registered on the fresh blockchain.*
+
+3. **Reset MetaMask (REQUIRED):**
+   MetaMask → **Settings** → **Advanced** → **Clear activity tab data**.
+
+---
+
+### Option B: The Pro Way (Persistent Data)
+
+If you want to keep your blockchain data (donations, etc.) alive even if you stop working on the website, use this method:
+
+**Terminal 1 (Blockchain):**
+Keep this running forever (or until you restart your PC).
 ```bash
-cd NexusAid-Web3/contracts
-npx hardhat node
+npm run node:contracts
 ```
 
-### Step B: Re-deploy the contracts (REQUIRED every time you restart the node)
+**Terminal 2 (One-time):**
+Run this only once after starting the node.
 ```bash
-cd NexusAid-Web3/contracts
-npx hardhat run scripts/deploy/deploy-donate.js --network localhost
-npx hardhat run scripts/deploy/deploy-escrow.js --network localhost
-npx hardhat run scripts/deploy/deploy-reputation.js --network localhost
+npm run deploy:local
 ```
 
-> 📝 If the new addresses are different from what's in your `.env.local`, update them!
-
-### Step C: Reset MetaMask (REQUIRED every time you restart the node)
-1. Open MetaMask → **Settings** (gear icon) → **Advanced**.
-2. Scroll down to **"Clear activity tab data"** and click it.
-3. Confirm.
-
-> **Why?** MetaMask remembers transaction history from the old blockchain instance. When you restart the node, it's a brand new blockchain and the old history is invalid. Clearing resets MetaMask's memory.
-
-### Step D: Start the website
+**Terminal 3 (Work):**
+Run this every time you want to code. It only starts the website and backend.
 ```bash
-cd NexusAid-Web3
-npm run dev:frontend
+npm run dev:app
 ```
 
-### Step E: Hard refresh the browser
-Press `Ctrl + F5` (Windows/Linux) or `Cmd + Shift + R` (Mac) to clear the browser cache.
+---
+
+### Critical Maintenance Steps
+
+Regardless of which method you use, if the **blockchain node restarts** (because you closed the terminal or restarted your PC), you **MUST** do these two things:
+
+1. **Reset MetaMask Activity:**
+   MetaMask → **Settings** → **Advanced** → **Clear activity tab data**.
+   *If you don't do this, you will get "Nonce too high" or "Internal JSON-RPC" errors.*
+
+2. **Sync the Database:**
+   ```bash
+   npm run db:reset-web3
+   ```
+   *If you don't do this, your old events will say "Campaign not active" because the new blockchain doesn't know about them yet.*
 
 ---
 
@@ -500,37 +528,26 @@ npm run dev:frontend
 │                  NexusAid Quick Start                    │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  Terminal 1 (Blockchain):                               │
-│  $ cd contracts && npx hardhat node                     │
+│  Option 1: The Fast Way (Full Auto)                     │
+│  $ npm run dev:all                                      │
 │                                                         │
-│  Terminal 2 (Deploy):                                   │
-│  $ cd contracts                                         │
-│  $ npx hardhat run scripts/deploy/deploy-donate.js      │
-│       --network localhost                               │
-│  $ npx hardhat run scripts/deploy/deploy-escrow.js      │
-│       --network localhost                               │
-│  $ npx hardhat run scripts/deploy/deploy-reputation.js  │
-│       --network localhost                               │
+│  Option 2: The Pro Way (Persistent Node)                │
+│  $ npm run node:contracts   (Terminal 1)                │
+│  $ npm run deploy:local     (Terminal 2 - Once)         │
+│  $ npm run dev:app          (Terminal 3 - Daily)        │
 │                                                         │
-│  Terminal 3 (Website):                                  │
-│  $ npm run dev:frontend                                 │
-│                                                         │
-│  Browser: http://localhost:3000                          │
+│  ⚠  AFTER PC RESTART OR NODE RESET:                     │
+│  1. $ npm run db:reset-web3                             │
+│  2. MetaMask -> Settings -> Advanced ->                 │
+│     Clear activity tab data                             │
 │                                                         │
 │  MetaMask Network:                                      │
 │    Name:     Hardhat Local                              │
 │    RPC URL:  http://127.0.0.1:8545                      │
 │    Chain ID: 31337                                      │
-│    Symbol:   ETH                                        │
 │                                                         │
 │  Test Private Key:                                      │
 │  ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae...  │
-│  784d7bf4f2ff80                                         │
-│                                                         │
-│  ⚠  After EVERY node restart:                           │
-│     MetaMask → Settings → Advanced →                    │
-│     Clear activity tab data                             │
-│                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
