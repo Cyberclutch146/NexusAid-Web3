@@ -106,6 +106,12 @@ export function EventCard({
             <span className="font-semibold text-on-surface">{event.organizer}</span>
             <span className="opacity-40">•</span>
             <span>{event.distance}</span>
+            {event.onChainCampaignId != null && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8247e5]">
+                <span className="material-symbols-outlined text-[13px]">verified</span>
+                On-Chain
+              </span>
+            )}
           </div>
           <div className="space-y-3">
             <h3 className="text-xl font-semibold leading-tight tracking-tight text-on-surface sm:text-2xl md:text-3xl">{event.title}</h3>
@@ -152,6 +158,12 @@ export function EventCard({
             <span className="font-semibold text-on-surface">{event.organizer}</span>
             <span className="opacity-40">•</span>
             <span>{event.distance}</span>
+            {event.onChainCampaignId != null && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8247e5]">
+                <span className="material-symbols-outlined text-[13px]">verified</span>
+                On-Chain
+              </span>
+            )}
           </div>
           {recommendationPercentage !== undefined && (
             <div

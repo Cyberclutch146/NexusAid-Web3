@@ -10,7 +10,7 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [stats, setStats] = useState({ totalVolunteers: 0, totalHours: 0, totalDonated: 0 });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'impact' | 'hours' | 'donated'>('impact');
+  const [activeTab, setActiveTab] = useState<'impact' | 'hours' | 'donated' | 'web3'>('impact');
 
   useEffect(() => {
     const loadData = async () => {
@@ -33,6 +33,7 @@ export default function LeaderboardPage() {
   const sortedEntries = [...entries].sort((a, b) => {
     if (activeTab === 'hours') return b.volunteerHours - a.volunteerHours;
     if (activeTab === 'donated') return b.totalDonated - a.totalDonated;
+    if (activeTab === 'web3') return b.badgeCount - a.badgeCount;
     return b.impactScore - a.impactScore;
   });
 
@@ -94,11 +95,12 @@ export default function LeaderboardPage() {
       </div>
 
       {/* Sort Tabs */}
-      <div className="flex items-center gap-2 mb-8 animate-fade-in-up delay-200">
+      <div className="flex flex-wrap items-center gap-2 mb-8 animate-fade-in-up delay-200">
         {[
           { key: 'impact' as const, label: 'Impact Score', icon: 'star' },
           { key: 'hours' as const, label: 'Hours', icon: 'schedule' },
           { key: 'donated' as const, label: 'Donations', icon: 'paid' },
+          { key: 'web3' as const, label: 'Web3 Badges', icon: 'verified' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -107,8 +109,8 @@ export default function LeaderboardPage() {
               activeTab === tab.key ? 'text-on-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/40'
             }`}
             style={activeTab === tab.key ? {
-              background: 'linear-gradient(135deg, var(--color-primary-base), var(--color-moss))',
-              boxShadow: '0 3px 12px rgba(59, 107, 74, 0.25)',
+              background: tab.key === 'web3' ? 'linear-gradient(135deg, #8247e5, #6b21a8)' : 'linear-gradient(135deg, var(--color-primary-base), var(--color-moss))',
+              boxShadow: tab.key === 'web3' ? '0 3px 12px rgba(130, 71, 229, 0.25)' : '0 3px 12px rgba(59, 107, 74, 0.25)',
             } : undefined}
           >
             <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: activeTab === tab.key ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
@@ -240,7 +242,7 @@ export default function LeaderboardPage() {
                         {getStatValue(entry, activeTab)}
                       </p>
                       <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">
-                        {activeTab === 'hours' ? 'hours' : activeTab === 'donated' ? 'donated' : 'score'}
+                        {activeTab === 'hours' ? 'hours' : activeTab === 'donated' ? 'donated' : activeTab === 'web3' ? 'on-chain' : 'score'}
                       </p>
                     </div>
                   </div>
@@ -254,8 +256,9 @@ export default function LeaderboardPage() {
   );
 }
 
-function getStatValue(entry: LeaderboardEntry, tab: 'impact' | 'hours' | 'donated'): string {
+function getStatValue(entry: LeaderboardEntry, tab: 'impact' | 'hours' | 'donated' | 'web3'): string {
   if (tab === 'hours') return `${entry.volunteerHours}h`;
   if (tab === 'donated') return `$${entry.totalDonated.toLocaleString()}`;
+  if (tab === 'web3') return `${entry.badgeCount} Badges`;
   return entry.impactScore.toLocaleString();
 }

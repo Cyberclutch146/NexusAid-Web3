@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 interface Milestone {
   description: string;
+  evidenceCID?: string;
   status: number; // 0=Pending, 1=Proposed, 2=Approved
   releasedAmount: string; // ETH string
 }
@@ -69,9 +70,11 @@ export function MilestoneTracker({
       const count = Number(milestoneCount);
       const results: Milestone[] = [];
       for (let i = 0; i < count; i++) {
-        const [description, status, releasedAmount] = await contract.getMilestone(escrowCampaignId, i);
+        // ABI: description, evidenceCID, status, releasedAmount
+        const [description, evidenceCID, status, releasedAmount] = await contract.getMilestone(escrowCampaignId, i);
         results.push({
           description: description as string,
+          evidenceCID: evidenceCID as string,
           status: Number(status),
           releasedAmount: formatEther(releasedAmount as bigint),
         });
@@ -248,6 +251,24 @@ export function MilestoneTracker({
                         </span>
                       )}
                     </div>
+                    {m.evidenceCID && (
+                      <div className="mt-3 relative w-full max-w-[200px] h-28 rounded-lg overflow-hidden border border-white/10 group">
+                        <img 
+                          src={`https://gateway.pinata.cloud/ipfs/${m.evidenceCID}`} 
+                          alt="Milestone Evidence"
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <a 
+                          href={`https://gateway.pinata.cloud/ipfs/${m.evidenceCID}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                          View Proof
+                        </a>
+                      </div>
+                    )}
                   </div>
 
                   {/* Action buttons */}

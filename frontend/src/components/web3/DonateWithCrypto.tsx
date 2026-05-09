@@ -139,6 +139,15 @@ export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
               tx: {txHash.slice(0, 10)}...{txHash.slice(-8)}
             </p>
           )}
+          <a
+            href={`https://x.com/intent/tweet?text=${encodeURIComponent(`I just donated MATIC to a disaster relief campaign on @NexusAid! 🛡️ Track my on-chain impact here: https://amoy.polygonscan.com/tx/${txHash}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 w-full py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-2 bg-black text-white hover:bg-gray-800 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[14px]">share</span>
+            Share Proof of Impact
+          </a>
         </div>
       ) : (
         <>
