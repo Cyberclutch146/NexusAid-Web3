@@ -6,6 +6,7 @@ contract NexusDonate {
 
     struct Campaign {
         string firebaseEventId;
+        string metadataCID;      // IPFS CID of campaign metadata JSON
         address organizer;
         uint256 totalRaised;
         bool active;
@@ -21,9 +22,10 @@ contract NexusDonate {
     mapping(uint256 => Campaign) public campaigns;
     mapping(uint256 => DonationRecord[]) public donationHistory;
 
-    event CampaignCreated(uint256 indexed id, string firebaseEventId, address organizer);
+    event CampaignCreated(uint256 indexed id, string firebaseEventId, address organizer, string metadataCID);
     event DonationMade(uint256 indexed campaignId, address indexed donor, uint256 amount);
     event FundsWithdrawn(uint256 indexed campaignId, uint256 amount);
+    event MetadataUpdated(uint256 indexed campaignId, string newMetadataCID);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -35,18 +37,32 @@ contract NexusDonate {
     }
 
     // ─── Create a campaign linked to a Firebase event ───
+    /**
+     * @param _firebaseEventId  Firestore document ID for the event
+     * @param _metadataCID      IPFS CID of the campaign metadata JSON
+     */
     function createCampaign(
-        string calldata _firebaseEventId
+        string calldata _firebaseEventId,
+        string calldata _metadataCID
     ) external returns (uint256) {
         uint256 id = campaignCount++;
         campaigns[id] = Campaign({
             firebaseEventId: _firebaseEventId,
-            organizer: msg.sender,
-            totalRaised: 0,
-            active: true
+            metadataCID:     _metadataCID,
+            organizer:       msg.sender,
+            totalRaised:     0,
+            active:          true
         });
-        emit CampaignCreated(id, _firebaseEventId, msg.sender);
+        emit CampaignCreated(id, _firebaseEventId, msg.sender, _metadataCID);
         return id;
+    }
+
+    // ─── Organizer can update the IPFS metadata CID ─────
+    function updateMetadataCID(uint256 _campaignId, string calldata _newCID) external {
+        Campaign storage c = campaigns[_campaignId];
+        require(msg.sender == c.organizer, "Not organizer");
+        c.metadataCID = _newCID;
+        emit MetadataUpdated(_campaignId, _newCID);
     }
 
     // ─── Donate ETH/MATIC to a campaign ─────────────────
@@ -57,8 +73,8 @@ contract NexusDonate {
 
         c.totalRaised += msg.value;
         donationHistory[_campaignId].push(DonationRecord({
-            donor: msg.sender,
-            amount: msg.value,
+            donor:     msg.sender,
+            amount:    msg.value,
             timestamp: block.timestamp
         }));
 
@@ -82,10 +98,16 @@ contract NexusDonate {
 
     // ─── Read helpers for the frontend ──────────────────
     function getCampaign(uint256 _campaignId)
-        external view returns (string memory firebaseEventId, address organizer, uint256 totalRaised, bool active)
+        external view returns (
+            string memory firebaseEventId,
+            string memory metadataCID,
+            address organizer,
+            uint256 totalRaised,
+            bool active
+        )
     {
         Campaign storage c = campaigns[_campaignId];
-        return (c.firebaseEventId, c.organizer, c.totalRaised, c.active);
+        return (c.firebaseEventId, c.metadataCID, c.organizer, c.totalRaised, c.active);
     }
 
     function getDonationCount(uint256 _campaignId) external view returns (uint256) {

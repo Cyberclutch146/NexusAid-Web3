@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "node":         "npx hardhat node",
+    "deploy:local": "npx hardhat run scripts/deploy/deploy-all.js --network localhost",
+    "deploy:amoy":  "npx hardhat run scripts/deploy/deploy-all.js --network amoy",
+    "compile":      "npx hardhat compile",
+    "test":         "npx hardhat test"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

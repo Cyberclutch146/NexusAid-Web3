@@ -19,7 +19,7 @@ async function main() {
 
   if (network === "hardhat" || network === "localhost") {
     // Create a test campaign on local node so there's something to donate to immediately
-    const tx = await contract.createCampaign("demo-event-001");
+    const tx = await contract.createCampaign("demo-event-001", "");
     await tx.wait();
     console.log("\nTest campaign created with ID: 0 (linked to: demo-event-001)");
   } else {

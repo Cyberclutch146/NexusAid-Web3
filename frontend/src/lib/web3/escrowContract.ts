@@ -9,14 +9,15 @@ const ESCROW_ABI = [
   // Write
   "function createCampaign(string _firebaseEventId, string[] _milestoneDescs) external returns (uint256)",
   "function donate(uint256 _campaignId) external payable",
-  "function proposeMilestoneComplete(uint256 _campaignId, uint8 _milestoneIndex) external",
+  // _evidenceCID: IPFS CID of completion evidence — pass empty string if none
+  "function proposeMilestoneComplete(uint256 _campaignId, uint8 _milestoneIndex, string _evidenceCID) external",
   "function approveMilestone(uint256 _campaignId, uint8 _milestoneIndex) external",
   "function abandonCampaign(uint256 _campaignId) external",
   "function claimRefund(uint256 _campaignId) external",
 
-  // Read
+  // Read — getMilestone now returns evidenceCID as second value
   "function getCampaign(uint256 _id) view returns (string firebaseEventId, address organizer, uint256 totalRaised, uint256 totalReleased, uint8 milestoneCount, uint8 status)",
-  "function getMilestone(uint256 _campaignId, uint8 _index) view returns (string description, uint8 status, uint256 releasedAmount)",
+  "function getMilestone(uint256 _campaignId, uint8 _index) view returns (string description, string evidenceCID, uint8 status, uint256 releasedAmount)",
   "function getDonorAmount(uint256 _campaignId, address _donor) view returns (uint256)",
   "function campaignCount() view returns (uint256)",
   "function owner() view returns (address)",
@@ -24,7 +25,7 @@ const ESCROW_ABI = [
   // Events
   "event CampaignCreated(uint256 indexed id, string firebaseEventId, address organizer, uint8 milestoneCount)",
   "event DonationReceived(uint256 indexed campaignId, address indexed donor, uint256 amount)",
-  "event MilestoneProposed(uint256 indexed campaignId, uint8 milestoneIndex)",
+  "event MilestoneProposed(uint256 indexed campaignId, uint8 milestoneIndex, string evidenceCID)",
   "event MilestoneApproved(uint256 indexed campaignId, uint8 milestoneIndex, uint256 released)",
   "event FundsReleased(uint256 indexed campaignId, address organizer, uint256 amount)",
   "event CampaignAbandoned(uint256 indexed campaignId)",

@@ -18,6 +18,7 @@ contract NexusEscrow {
     // ─── Structs ─────────────────────────────────────────
     struct Milestone {
         string  description;
+        string  evidenceCID;    // IPFS CID of completion evidence (photos, docs)
         MilestoneStatus status;
         uint256 releasedAmount; // MATIC released when this milestone approved
     }
@@ -41,7 +42,7 @@ contract NexusEscrow {
     // ─── Events ──────────────────────────────────────────
     event CampaignCreated(uint256 indexed id, string firebaseEventId, address organizer, uint8 milestoneCount);
     event DonationReceived(uint256 indexed campaignId, address indexed donor, uint256 amount);
-    event MilestoneProposed(uint256 indexed campaignId, uint8 milestoneIndex);
+    event MilestoneProposed(uint256 indexed campaignId, uint8 milestoneIndex, string evidenceCID);
     event MilestoneApproved(uint256 indexed campaignId, uint8 milestoneIndex, uint256 released);
     event FundsReleased(uint256 indexed campaignId, address organizer, uint256 amount);
     event CampaignAbandoned(uint256 indexed campaignId);
@@ -87,6 +88,7 @@ contract NexusEscrow {
         for (uint8 i = 0; i < _milestoneDescs.length; i++) {
             milestones[id].push(Milestone({
                 description:    _milestoneDescs[i],
+                evidenceCID:    "",
                 status:         MilestoneStatus.Pending,
                 releasedAmount: 0
             }));
@@ -115,7 +117,17 @@ contract NexusEscrow {
     /**
      * @notice Organizer proposes that a milestone has been completed.
      */
-    function proposeMilestoneComplete(uint256 _campaignId, uint8 _milestoneIndex)
+    /**
+     * @notice Organizer proposes that a milestone has been completed.
+     * @param _campaignId      ID of the escrow campaign
+     * @param _milestoneIndex  Index of the milestone to propose
+     * @param _evidenceCID     IPFS CID of completion evidence (use "" if none)
+     */
+    function proposeMilestoneComplete(
+        uint256 _campaignId,
+        uint8   _milestoneIndex,
+        string  calldata _evidenceCID
+    )
         external
         campaignExists(_campaignId)
     {
@@ -127,8 +139,9 @@ contract NexusEscrow {
         Milestone storage m = milestones[_campaignId][_milestoneIndex];
         require(m.status == MilestoneStatus.Pending, "Milestone not pending");
 
-        m.status = MilestoneStatus.Proposed;
-        emit MilestoneProposed(_campaignId, _milestoneIndex);
+        m.status      = MilestoneStatus.Proposed;
+        m.evidenceCID = _evidenceCID;
+        emit MilestoneProposed(_campaignId, _milestoneIndex, _evidenceCID);
     }
 
     /**
@@ -237,10 +250,15 @@ contract NexusEscrow {
     }
 
     function getMilestone(uint256 _campaignId, uint8 _index)
-        external view returns (string memory description, uint8 status, uint256 releasedAmount)
+        external view returns (
+            string memory description,
+            string memory evidenceCID,
+            uint8  status,
+            uint256 releasedAmount
+        )
     {
         Milestone storage m = milestones[_campaignId][_index];
-        return (m.description, uint8(m.status), m.releasedAmount);
+        return (m.description, m.evidenceCID, uint8(m.status), m.releasedAmount);
     }
 
     function getDonorAmount(uint256 _campaignId, address _donor)

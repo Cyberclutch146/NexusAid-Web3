@@ -120,6 +120,8 @@ export default function BlockchainDashboardPage() {
     }
   };
 
+  const [isRpcOffline, setIsRpcOffline] = useState(false);
+
   // Fetch on-chain stats once wallet is known
   useEffect(() => {
     const load = async () => {
@@ -127,34 +129,63 @@ export default function BlockchainDashboardPage() {
       if (!walletAddr) return;
 
       setLoadingStats(true);
-      try {
-        const provider = new JsonRpcProvider(AMOY_RPC);
+      setIsRpcOffline(false);
 
-        // Network detection
-        const network = await provider.getNetwork();
+      // ── 1. Network detection ─────────────────────────────────────────────
+      let provider: import('ethers').JsonRpcProvider | null = null;
+      try {
+        provider = new JsonRpcProvider(AMOY_RPC);
+        // Short timeout so we fail fast instead of hanging
+        const networkPromise = provider.getNetwork();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('RPC timeout')), 5000)
+        );
+        const network = await Promise.race([networkPromise, timeoutPromise]);
         setNetworkInfo({
-          name: network.chainId === 31337n ? 'Hardhat' : network.chainId === 80002n ? 'Amoy' : 'Unknown',
+          name: network.chainId === 31337n ? 'Hardhat (Local)' : network.chainId === 80002n ? 'Polygon Amoy' : `Chain ${network.chainId}`,
           chainId: Number(network.chainId)
         });
+      } catch (networkErr: unknown) {
+        const msg = networkErr instanceof Error ? networkErr.message : '';
+        const isOffline = msg.includes('fetch') || msg.includes('timeout') || msg.includes('ECONNREFUSED') || msg.includes('network');
+        if (isOffline) {
+          setIsRpcOffline(true);
+          setNetworkInfo({ name: 'Offline', chainId: 0 });
+          setLoadingStats(false);
+          return; // No point trying balance/badge calls if RPC is unreachable
+        }
+        setNetworkInfo({ name: 'Unknown', chainId: 0 });
+      }
 
-        // MATIC balance
+      if (!provider) {
+        setLoadingStats(false);
+        return;
+      }
+
+      // ── 2. MATIC balance ─────────────────────────────────────────────────
+      try {
         const balance = await provider.getBalance(walletAddr);
         setMaticBalance(parseFloat(formatEther(balance)).toFixed(4));
+      } catch {
+        setMaticBalance(null); // Will render as '—'
+      }
 
-        // Badge count
-        if (REPUTATION_ADDRESS && REPUTATION_ADDRESS !== 'undefined') {
+      // ── 3. Badge count ───────────────────────────────────────────────────
+      if (REPUTATION_ADDRESS && REPUTATION_ADDRESS !== 'undefined') {
+        try {
           const repContract = await getReadOnlyReputationContract();
           const ids: bigint[] = await repContract.getBadgesByOwner(walletAddr);
           setBadgeCount(ids.length);
 
           const total = await repContract.totalMinted();
           setTotalMinted(Number(total));
+        } catch {
+          setBadgeCount(null);
+          setTotalMinted(null);
         }
-      } catch (err) {
-        console.error('BlockchainDashboard stats error:', err);
-      } finally {
-        setLoadingStats(false);
       }
+
+      setLoadingStats(false);
     };
 
     load();
@@ -185,6 +216,35 @@ export default function BlockchainDashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* ─── RPC Offline Banner ───────────────────────────────────── */}
+      {isRpcOffline && (
+        <div
+          className="flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium"
+          style={{
+            background: 'rgba(251,146,60,0.08)',
+            border: '1px solid rgba(251,146,60,0.25)',
+            color: 'var(--color-on-surface)',
+          }}
+        >
+          <span className="material-symbols-outlined text-[20px] text-orange-400 flex-shrink-0">wifi_off</span>
+          <div className="flex-1 min-w-0">
+            <span className="font-bold text-orange-400">Node Unreachable — </span>
+            On-chain stats are unavailable. Start your local Hardhat node with{' '}
+            <code className="text-xs bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">
+              npm run node:contracts
+            </code>{' '}
+            or switch <code className="text-xs bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">NEXT_PUBLIC_RPC_URL</code> to Polygon Amoy.
+          </div>
+          <button
+            onClick={() => setIsRpcOffline(false)}
+            className="flex-shrink-0 p-1 rounded-lg hover:bg-orange-500/10 transition-colors text-on-surface-variant"
+            aria-label="Dismiss"
+          >
+            <span className="material-symbols-outlined text-[16px]">close</span>
+          </button>
+        </div>
+      )}
 
       {/* ─── Bento Grid ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">

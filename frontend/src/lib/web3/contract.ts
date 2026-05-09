@@ -5,17 +5,25 @@ const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_DONATE_CONTRACT!;
 const AMOY_RPC = process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc-amoy.polygon.technology';
 
 // Human-readable ABI — ethers v6 parses this natively
+// ⚠️ Keep in sync with contracts/contracts/core/NexusDonate.sol
 const ABI = [
-  "function createCampaign(string _firebaseEventId) external returns (uint256)",
+  // Write
+  "function createCampaign(string _firebaseEventId, string _metadataCID) external returns (uint256)",
+  "function updateMetadataCID(uint256 _campaignId, string _newCID) external",
   "function donate(uint256 _campaignId) external payable",
   "function withdraw(uint256 _campaignId) external",
-  "function getCampaign(uint256 _campaignId) view returns (string firebaseEventId, address organizer, uint256 totalRaised, bool active)",
+
+  // Read — getCampaign now returns metadataCID as second value
+  "function getCampaign(uint256 _campaignId) view returns (string firebaseEventId, string metadataCID, address organizer, uint256 totalRaised, bool active)",
   "function getDonationCount(uint256 _campaignId) view returns (uint256)",
   "function getDonation(uint256 _campaignId, uint256 _index) view returns (address donor, uint256 amount, uint256 timestamp)",
   "function campaignCount() view returns (uint256)",
-  "event CampaignCreated(uint256 indexed id, string firebaseEventId, address organizer)",
+
+  // Events
+  "event CampaignCreated(uint256 indexed id, string firebaseEventId, address organizer, string metadataCID)",
   "event DonationMade(uint256 indexed campaignId, address indexed donor, uint256 amount)",
   "event FundsWithdrawn(uint256 indexed campaignId, uint256 amount)",
+  "event MetadataUpdated(uint256 indexed campaignId, string newMetadataCID)",
 ];
 
 /** Get a contract instance connected to a signer (for write ops) */
@@ -35,3 +43,4 @@ export async function getReadOnlyDonateContract() {
 }
 
 export { parseEther, formatEther, CONTRACT_ADDRESS };
+

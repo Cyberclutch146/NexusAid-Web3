@@ -8,9 +8,12 @@
     "contracts"
   ],
   "scripts": {
-    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:frontend":   "npm run dev --workspace=frontend",
     "build:frontend": "npm run build --workspace=frontend",
     "start:frontend": "npm run start --workspace=frontend",
-    "node:contracts": "npx hardhat node --workspace=contracts"
+    "node:contracts": "npm run node --workspace=contracts",
+    "deploy:local":   "npm run deploy:local --workspace=contracts",
+    "dev:backend":    "npm run dev --workspace=backend",
+    "start:backend":  "npm run start --workspace=backend"
   }
 }
