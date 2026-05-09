@@ -74,7 +74,8 @@ export const getGlobalLeaderboard = async (topN: number = 50): Promise<Leaderboa
       .map(doc => {
         const data = doc.data() as UserProfile;
         // Composite impact score: hours * 10 + donations * 1 + skills * 5
-        const impactScore = (data.volunteerHours || 0) * 10 + (data.totalDonated || 0) + (data.skills?.length || 0) * 5 + (data.badges?.length || 0) * 50;
+        const badgeCount = data.badgeCount || data.badges?.length || 0;
+        const impactScore = (data.volunteerHours || 0) * 10 + (data.totalDonated || 0) + (data.skills?.length || 0) * 5 + badgeCount * 50;
         return {
           id: doc.id,
           displayName: data.displayName || 'Anonymous Hero',
@@ -84,7 +85,7 @@ export const getGlobalLeaderboard = async (topN: number = 50): Promise<Leaderboa
           skills: data.skills || [],
           location: data.location || '',
           impactScore,
-          badgeCount: data.badges?.length || 0,
+          badgeCount,
         };
       })
       .filter(entry => entry.impactScore > 0) // Only include active users
