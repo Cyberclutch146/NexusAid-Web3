@@ -444,3 +444,45 @@ src/app/(app)/
 
 > [!IMPORTANT]
 > **Which phase(s) should I start building?** I recommend starting with **Phase 3A + 4B** simultaneously since they require zero intervention and deliver the most visible results immediately.
+
+---
+
+## ✅ Progress Update: Event Indexing & IPFS (Completed)
+
+We have successfully completed the core Web3 infrastructure setup, which bridges the gap between your smart contracts, your backend server, and your frontend dashboard.
+
+**What We Just Finished:**
+1. **IPFS Metadata Integration:** 
+   - Smart contracts (`NexusDonate`, `NexusEscrow`) were upgraded to accept IPFS CIDs for campaign metadata and milestone evidence.
+   - The backend listeners were updated to capture and index these new fields in Firestore.
+2. **Robust Deployment System:** 
+   - Created a master deployment script (`deploy-all.js`) that deploys all contracts, seeds demo data, and automatically generates a copy-pasteable `.env` block.
+3. **Backend Indexer Connected:** 
+   - The backend now successfully connects to your local Hardhat node and your Firebase database (using the frontend's `serviceAccountKey.json`), meaning it actively listens to smart contract events.
+4. **Frontend Resilience:** 
+   - Added a fallback state to the Blockchain Dashboard so the page doesn't crash when the local node is offline.
+
+---
+
+## 🚀 Immediate Next Steps
+
+Here is exactly what needs to be done next:
+
+### 🔴 From Your Side (The User)
+1. **Get Pinata API Keys:**
+   - Go to [pinata.cloud](https://pinata.cloud), create a free account, and generate API keys.
+   - Add `PINATA_API_KEY`, `PINATA_SECRET_KEY`, and `NEXT_PUBLIC_PINATA_GATEWAY_URL` to your `frontend/.env.local`.
+   *(Note: The codebase is already prepared to use these via `src/lib/ipfs/pinata.ts`)*
+2. **Review the UI:**
+   - Go to your local Blockchain Dashboard (`http://localhost:3000/dashboard/blockchain`).
+   - Confirm that the stats are loading correctly and it shows connected to your local Hardhat node.
+3. **Decide the Next Feature:**
+   - Review the roadmap above. Do you want to move into **Gasless Transactions (Biconomy)** next to make the platform frictionless, or proceed with **Dynamic SVG Badges (Phase 3A)** as recommended?
+
+### 🟢 From My Side (The Agent)
+1. **Frontend Integration of IPFS Hooks:**
+   - Once your Pinata keys are set, I need to wire up the `useIPFSUpload` hook into the "Create Campaign" and "Propose Milestone" UI forms so users can actually upload images/documents to IPFS.
+2. **Gasless Meta-Transactions:**
+   - If you choose Biconomy, I will write the `NexusForwarder.sol` contract and implement the EIP-712 signing logic in the frontend to sponsor gas fees for your users.
+3. **Proceed with the Roadmap:**
+   - I am ready to implement any phase from the roadmap above as soon as you give the green light.
