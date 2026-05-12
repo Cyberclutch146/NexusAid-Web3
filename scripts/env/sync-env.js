@@ -2,9 +2,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const addressesPath = path.join(__dirname, '..', 'contracts', 'deployed-addresses.json');
-const frontendEnvPath = path.join(__dirname, '..', 'frontend', '.env.local');
-const backendEnvPath = path.join(__dirname, '..', 'backend', '.env');
+const addressesPath = path.join(__dirname, '..', '..', 'contracts', 'deployed-addresses.json');
+const frontendEnvPath = path.join(__dirname, '..', '..', 'frontend', '.env.local');
+const backendEnvPath = path.join(__dirname, '..', '..', 'backend', '.env');
 
 if (!fs.existsSync(addressesPath)) {
   console.error('❌ deployed-addresses.json not found. Run deployment first.');

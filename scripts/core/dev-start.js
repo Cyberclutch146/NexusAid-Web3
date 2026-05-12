@@ -7,7 +7,8 @@ const { spawn, execSync } = require('child_process');
 const path = require('path');
 const net = require('net');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '..', '..');
+let childProcesses = [];
 
 // ─── Helpers ─────────────────────────────────────────────────────
 function log(tag, msg, color = '\x1b[36m') {
@@ -59,6 +60,7 @@ function spawnBg(tag, cmd, args, opts = {}) {
     shell: true,
     env: { ...process.env, ...opts.env },
   });
+  childProcesses.push(child);
   const colorize = (line) => line.toString().split('\n').filter(Boolean).forEach(l => {
     log(tag, l, opts.color || '\x1b[37m');
   });
@@ -85,18 +87,27 @@ async function main() {
 
   // Step 3: Deploy contracts
   log('3/5', '📦 Deploying contracts...', '\x1b[34m');
-  await runCommand('npm', ['run', 'deploy:local']);
-  log('3/5', '✅ Contracts deployed!', '\x1b[32m');
+  try {
+    await runCommand('npm', ['run', 'deploy:local']);
+    log('3/5', '✅ Contracts deployed!', '\x1b[32m');
+  } catch (err) {
+    // Check for the specific Windows Node.js bug exit code 3221226505
+    if (err.message.includes('3221226505')) {
+      log('3/5', '⚠️  Caught Windows Node.js exit bug (3221226505), but deployment appears finished. Continuing...', '\x1b[33m');
+    } else {
+      throw err;
+    }
+  }
 
   // Step 4: Sync environment files
   log('4/5', '🔄 Syncing environment files...', '\x1b[34m');
-  await runCommand('node', ['scripts/sync-env.js']);
+  await runCommand('node', ['scripts/env/sync-env.js']);
   log('4/5', '✅ Environment synced!', '\x1b[32m');
 
   // Step 5: Reset stale DB IDs
   log('5/5', '🗑️  Resetting stale blockchain IDs in Firestore...', '\x1b[34m');
   try {
-    await runCommand('node', ['scripts/reset-web3-ids.js'], {
+    await runCommand('node', ['scripts/env/reset-web3-ids.js'], {
       env: { GOOGLE_APPLICATION_CREDENTIALS: path.join(ROOT, 'frontend', 'serviceAccountKey.json') },
     });
     log('5/5', '✅ Database reset complete!', '\x1b[32m');
@@ -132,8 +143,8 @@ async function main() {
   // Cleanup on exit
   const cleanup = () => {
     console.log('\n\x1b[33m🛑 Shutting down all services...\x1b[0m');
-    [node, backend, frontend].forEach(p => {
-      try { p.kill('SIGTERM'); } catch {}
+    childProcesses.forEach(p => {
+      try { p.kill('SIGKILL'); } catch {}
     });
     process.exit(0);
   };
@@ -143,5 +154,8 @@ async function main() {
 
 main().catch((err) => {
   console.error('\x1b[31m❌ Startup failed:\x1b[0m', err.message);
+  childProcesses.forEach(p => {
+    try { p.kill('SIGKILL'); } catch {}
+  });
   process.exit(1);
 });

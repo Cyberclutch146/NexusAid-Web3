@@ -17,6 +17,10 @@ Start-Sleep -Seconds 8
 Write-Host "[2/4] Deploying contracts to Localhost..." -ForegroundColor Yellow
 npm run deploy:local
 
+# 3.5 Sync Environment Variables
+Write-Host "🔄 Syncing contract addresses..." -ForegroundColor Gray
+npm run sync-env
+
 # 4. Start Backend
 Write-Host "[3/4] Starting Backend Server in a new window..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev:backend"
@@ -25,12 +29,27 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev:backe
 Write-Host "[4/4] Starting Frontend Dev Server in a new window..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev:frontend"
 
-Write-Host ""
-Write-Host "✅ ALL SYSTEMS GO!" -ForegroundColor Green
+Write-Host @"
+  _   _                             _     _ 
+ | \ | | _____  ___   _ ___    / \   (_) __| |
+ |  \| |/ _ \ \/ / | | / __|  / _ \  | |/ _` |
+ | |\  |  __/>  <| |_| \__ \ / ___ \ | | (_| |
+ |_| \_|\___/_/\_\\__,_|___//_/   \_\|_|\__,_|
+"@ -ForegroundColor Cyan
+
 Write-Host "-----------------------------------------------"
 Write-Host "• Hardhat Node: Running in separate window"
 Write-Host "• Contracts: Deployed to localhost"
 Write-Host "• Backend: Starting in separate window"
 Write-Host "• Frontend: Starting in separate window"
 Write-Host "-----------------------------------------------"
-Write-Host "Happy coding! 🚀" -ForegroundColor Cyan
+
+Write-Host @"
+  ____  _   _  ____ ____ _____ ____ ____  
+ / ___|| | | |/ ___/ ___| ____/ ___/ ___| 
+ \___ \| | | | |  | |   |  _| \___ \___ \ 
+  ___) | |_| | |__| |___| |___ ___) |__) |
+ |____/ \___/ \____\____|_____|____/____/ 
+"@ -ForegroundColor Green
+
+Write-Host "🚀 Happy coding! Your environment is ready." -ForegroundColor Cyan

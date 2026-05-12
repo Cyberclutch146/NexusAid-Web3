@@ -169,9 +169,19 @@ NexusAid-Web3/
 │   ├── ROADMAP.md                     # 42-feature strategic roadmap
 │   └── DEPLOY_GUIDE.md                # Beginner's deployment guide
 │
+├── scripts/                           # Automation & Orchestration
+│   ├── core/                          # Main dev-loop and launch scripts
+│   │   ├── launch-all.ps1
+│   │   ├── dev-start.js
+│   │   └── check-node.js
+│   ├── env/                           # Environment sync utilities
+│   │   ├── sync-env.js
+│   │   └── reset-web3-ids.js
+│   └── setup/                         # One-time setup scripts
+│
 ├── package.json                       # Root workspace configuration
 ├── .gitignore                         # Monorepo-wide ignore rules
-└── check-node.js                      # Utility: verify local node status
+└── nexus.bat                          # Unified one-click startup shortcut
 ```
 
 ---
@@ -288,37 +298,22 @@ The root `package.json` uses npm workspaces. A single install covers all package
 npm install
 ```
 
-### 3. Start the Local Blockchain
-Open **Terminal 1** and start the Hardhat node (persistent local blockchain):
-```bash
-cd contracts
-npx hardhat node
+### 3. Start the Entire Platform
+With the new unified launcher, you no longer need to open multiple terminals.
+Open a **single terminal** at the project root and run:
+```powershell
+.\nexus
 ```
-> This starts a local Ethereum node at `http://127.0.0.1:8545` with Chain ID `31337`. 
-> It pre-funds 20 test accounts with 10,000 ETH each.
+*(Or run `npm start`)*
 
-### 4. Deploy Smart Contracts
-Open **Terminal 2** and deploy all three contracts:
-```bash
-cd contracts
-npx hardhat run scripts/deploy/deploy-donate.js --network localhost
-npx hardhat run scripts/deploy/deploy-escrow.js --network localhost
-npx hardhat run scripts/deploy/deploy-reputation.js --network localhost
-```
+**What this does automatically:**
+1. Starts the local Hardhat blockchain.
+2. Deploys `NexusDonate`, `NexusEscrow`, and `NexusReputation` contracts.
+3. Synchronizes the new contract addresses into your frontend and backend `.env` files.
+4. Resets any stale blockchain data in Firestore.
+5. Boots up both the **Backend API** and **Frontend Next.js** servers.
 
-After deployment, copy the printed contract addresses into `frontend/.env.local`:
-```env
-NEXT_PUBLIC_DONATE_CONTRACT=0x5FbDB2315678afecb367f032d93F642f64180aa3
-NEXT_PUBLIC_ESCROW_CONTRACT=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
-NEXT_PUBLIC_REPUTATION_CONTRACT=0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
-```
-
-### 5. Start the Frontend
-Open **Terminal 3** (from the repo root):
-```bash
-npm run dev:frontend
-```
-Navigate to **http://localhost:3000**.
+Navigate to **http://localhost:3000** to see the app!
 
 ### 6. Configure MetaMask
 1. Open MetaMask → **Settings** → **Networks** → **Add Network**.
@@ -451,7 +446,7 @@ The frontend automatically detects whether you are running locally or on a deplo
 ### Verifying Node Status
 Run the diagnostic script from the repo root:
 ```bash
-node check-node.js
+node scripts/core/check-node.js
 ```
 Expected output:
 ```
@@ -476,14 +471,13 @@ Connected to Chain ID: 31337
 | Command | Description |
 |---|---|
 | `npm install` | Install all workspace dependencies |
-| `npm run dev:frontend` | Start the Next.js dev server (Turbopack) |
-| `npm run build:frontend` | Build the frontend for production |
-| `npm run start:frontend` | Start the production frontend server |
-| `cd contracts && npx hardhat node` | Start the local Hardhat blockchain |
-| `cd contracts && npx hardhat run scripts/deploy/deploy-donate.js --network localhost` | Deploy NexusDonate |
-| `cd contracts && npx hardhat run scripts/deploy/deploy-escrow.js --network localhost` | Deploy NexusEscrow |
-| `cd contracts && npx hardhat run scripts/deploy/deploy-reputation.js --network localhost` | Deploy NexusReputation |
-| `node check-node.js` | Verify local node connectivity and balance |
+| `npm start` | **[RECOMMENDED]** Start everything (Blockchain, Backend, Frontend) in a single unified terminal |
+| `npm run launch` | Start everything but open separate PowerShell windows for each service |
+| `npm run dev:frontend` | Start just the Next.js frontend |
+| `npm run dev:backend` | Start just the Express backend |
+| `npm run sync-env` | Manually sync `.env` files with deployed contract addresses |
+| `cd contracts && npx hardhat node` | Manually start local blockchain |
+| `node scripts/core/check-node.js` | Verify local node connectivity and balance |
 
 ---
 
