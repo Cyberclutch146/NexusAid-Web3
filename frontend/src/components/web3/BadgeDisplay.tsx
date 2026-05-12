@@ -34,7 +34,8 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
         
         // Check if contract exists at address to avoid BAD_DATA (0x) errors
         const address = await contract.getAddress();
-        const code = await contract.runner?.provider?.getCode(address);
+        const provider = (contract.runner as any)?.provider || contract.runner;
+        const code = await (provider as any)?.getCode?.(address);
         
         if (!code || code === '0x') {
           // Contract not deployed yet (e.g., local node just started) — show empty state silently

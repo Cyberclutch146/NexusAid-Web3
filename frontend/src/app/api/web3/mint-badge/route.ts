@@ -109,10 +109,10 @@ export async function POST(req: NextRequest) {
       const userSnap = await userRef.get();
       const existing: any[] = userSnap.data()?.badges || [];
 
-      await userRef.update({
+      await userRef.set({
         badges:    [...existing, newBadge],
         updatedAt: new Date(),
-      });
+      }, { merge: true });
     }
 
     return NextResponse.json({

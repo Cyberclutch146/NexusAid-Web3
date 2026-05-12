@@ -111,12 +111,12 @@ export async function POST(req: NextRequest) {
       const stubDonated = parseFloat(stubSnap.data()?.totalDonated) || 0;
       totalDonated += stubDonated;
       // Merge the stub's totalDonated into the real user profile and delete the stub
-      await userRef.update({
+      await userRef.set({
         totalDonated: adminDb.constructor.name === 'Firestore'
           ? totalDonated  // plain number merge
           : totalDonated,
         walletAddress: recipientLower,
-      });
+      }, { merge: true });
       await stubSnap.ref.delete();
       console.log(`[claim-badge] Merged wallet stub (+${stubDonated} ETH) into user ${userId}`);
     }
@@ -185,10 +185,10 @@ export async function POST(req: NextRequest) {
 
     // 3. Update User Profile in DB
     if (claimedDetails.length > 0) {
-      await userRef.update({
+      await userRef.set({
         badges: existingBadges,
         updatedAt: new Date(),
-      });
+      }, { merge: true });
     }
 
     return NextResponse.json({
