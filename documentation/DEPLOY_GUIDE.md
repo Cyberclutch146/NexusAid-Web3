@@ -2,6 +2,8 @@
 
 > **No blockchain experience needed.** This guide assumes you've never touched Web3, MetaMask, or Solidity before. Follow every step exactly and you'll have a fully working local blockchain + NexusAid frontend running on your machine in under 15 minutes.
 
+Good luck deploying!
+
 ---
 
 ## Table of Contents
