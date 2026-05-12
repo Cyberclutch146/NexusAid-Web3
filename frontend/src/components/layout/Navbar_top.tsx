@@ -4,6 +4,8 @@ import { Lora } from 'next/font/google'
 import { useRouter, usePathname } from 'next/navigation'
 import { Search, Bell, X, Sun, Moon, User, LogOut, Info, ChevronDown, CheckCheck } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useWallet } from '@/hooks/useWallet'
+import { AddressBadge } from '@/components/web3/AddressBadge'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTheme } from 'next-themes'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -32,6 +34,7 @@ export default function NavbarTop() {
   const router = useRouter()
   const pathname = usePathname()
   const { profile, logout } = useAuth()
+  const { address, networkName, balance, connect, isConnecting } = useWallet()
   const { setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -268,6 +271,22 @@ export default function NavbarTop() {
               </button>
             )
           })}
+          
+          {/* Network Pill */}
+          {networkName && (
+            <div 
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full ml-2 animate-in fade-in slide-in-from-right-4 duration-500"
+              style={{ 
+                background: 'rgba(59, 107, 74, 0.08)',
+                border: '1px solid rgba(59, 107, 74, 0.15)',
+              }}
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                {networkName}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Right Section */}
@@ -475,11 +494,33 @@ export default function NavbarTop() {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">Signed in</p>
                         <p className="mt-1 text-base font-semibold text-on-surface truncate">{profile?.displayName || 'User'}</p>
                         <p className="text-xs text-on-surface-variant truncate">{profile?.email || ''}</p>
                       </div>
+                    </div>
+
+                    {/* Wallet Section in Profile Menu */}
+                    <div className="mt-4 pt-4 border-t border-glass/40">
+                      {address ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Wallet</span>
+                            <span className="text-[10px] font-bold text-primary">{balance} ETH</span>
+                          </div>
+                          <AddressBadge address={address} isHardhat={networkName === 'Hardhat'} className="w-full justify-between" />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={connect}
+                          disabled={isConnecting}
+                          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all hover:bg-primary/10 text-primary border border-primary/20"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+                          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                        </button>
+                      )}
                     </div>
                   </div>
 

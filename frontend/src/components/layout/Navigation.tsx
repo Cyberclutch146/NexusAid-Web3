@@ -8,11 +8,14 @@ import { getUserAvatar } from '@/utils/avatar';
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Info, LogOut, Moon, Sun, User } from 'lucide-react';
+import { ChevronDown, Info, LogOut, Moon, Sun, User, Wallet } from 'lucide-react';
+import { useWallet } from '@/hooks/useWallet';
+import { AddressBadge } from '@/components/web3/AddressBadge';
 
 export function SideNav() {
   const pathname = usePathname();
   const { profile } = useAuth();
+  const { address, networkName } = useWallet();
   
   const navItems = [
     { name: 'Feed', href: '/feed', icon: 'dashboard' },
@@ -48,7 +51,15 @@ export function SideNav() {
         </div>
         <div>
           <h1 className="font-headline text-lg font-bold tracking-tight text-gradient-earth">NexusAid</h1>
-          <p className="font-body text-xs text-on-surface-variant">Local Response Team</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-body text-xs text-on-surface-variant">Local Team</p>
+            {networkName && (
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/5 border border-primary/10">
+                <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[8px] font-bold uppercase tracking-tighter opacity-70">{networkName}</span>
+              </div>
+            )}
+          </div>
         </div>
       </Link>
       
@@ -109,6 +120,7 @@ export function SideNav() {
 export function MobileHeader() {
   const router = useRouter();
   const { profile, logout } = useAuth();
+  const { address, networkName, balance, connect, isConnecting } = useWallet();
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -198,12 +210,48 @@ export function MobileHeader() {
                         className="h-full w-full object-cover"
                       />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">Signed in</p>
                       <p className="mt-1 truncate text-base font-semibold text-on-surface">{profile?.displayName || 'User'}</p>
                       <p className="truncate text-xs text-on-surface-variant">{profile?.email || ''}</p>
                     </div>
                   </div>
+                </div>
+
+                {/* Wallet Info in Mobile Profile Menu */}
+                <div className="mt-3 px-1">
+                  {address ? (
+                    <div 
+                      className="p-3.5 rounded-[22px]"
+                      style={{ background: 'color-mix(in srgb, var(--color-surface-container-high-base) 84%, transparent)', border: '1px solid var(--glass-border)' }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                            <Wallet size={14} />
+                          </div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Wallet Stats</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-[9px] font-bold uppercase text-on-surface-variant opacity-70">{networkName}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-end justify-between gap-4">
+                        <AddressBadge address={address} isHardhat={networkName === 'Hardhat'} className="bg-surface-base/50" />
+                        <span className="text-sm font-black text-on-surface">{balance} ETH</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={connect}
+                      disabled={isConnecting}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-[20px] text-xs font-bold uppercase tracking-wider transition-all hover:bg-primary/10 text-primary border border-primary/20"
+                    >
+                      <Wallet size={16} />
+                      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">

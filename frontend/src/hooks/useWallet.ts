@@ -4,7 +4,7 @@
 // Manages connection state, EIP-191 signing, and wallet linking.
 
 import { useState, useEffect, useCallback } from 'react';
-import { BrowserProvider, JsonRpcSigner } from 'ethers';
+import { BrowserProvider, JsonRpcSigner, formatEther } from 'ethers';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 
@@ -23,8 +23,11 @@ declare global {
 interface WalletState {
   address: string | null;
   signer: JsonRpcSigner | null;
+  chainId: number | null;
+  networkName: string | null;
+  balance: string | null;
   isConnecting: boolean;
-  connecting: boolean; // alias for backward compat
+  connecting: boolean;
   isLinking: boolean;
   isLinked: boolean;
   connect: () => Promise<void>;
@@ -40,10 +43,31 @@ export function useWallet(): WalletState {
 
   const [address,      setAddress]      = useState<string | null>(null);
   const [signer,       setSigner]       = useState<JsonRpcSigner | null>(null);
+  const [chainId,      setChainId]      = useState<number | null>(null);
+  const [networkName,  setNetworkName]  = useState<string | null>(null);
+  const [balance,      setBalance]      = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLinking,    setIsLinking]    = useState(false);
 
   const isLinked = !!(profile?.walletAddress);
+
+  // Helper to fetch network and balance
+  const refreshStats = useCallback(async (currentAddress: string, currentSigner: JsonRpcSigner) => {
+    try {
+      const provider = currentSigner.provider;
+      const network = await provider.getNetwork();
+      const bal = await provider.getBalance(currentAddress);
+      
+      setChainId(Number(network.chainId));
+      const name = Number(network.chainId) === 31337 ? 'Hardhat' : 
+                   Number(network.chainId) === 80002 ? 'Amoy' : 
+                   Number(network.chainId) === 137 ? 'Polygon' : 'Unknown';
+      setNetworkName(name);
+      setBalance(parseFloat(formatEther(bal)).toFixed(4));
+    } catch (err) {
+      console.error('Failed to refresh wallet stats:', err);
+    }
+  }, []);
 
   // Auto-detect already-connected wallet on mount
   useEffect(() => {
@@ -56,24 +80,32 @@ export function useWallet(): WalletState {
           const s = await provider.getSigner();
           setAddress(accounts[0]);
           setSigner(s);
+          refreshStats(accounts[0], s);
         }
       } catch {
         // Silently ignore
       }
     };
     autoConnect();
-  }, []);
+  }, [refreshStats]);
 
   // Listen for account changes
   useEffect(() => {
     if (!window.ethereum) return;
-    const handleChange = (...args: unknown[]) => {
+    const handleChange = async (...args: unknown[]) => {
       const accounts = args[0] as string[];
       if (accounts.length === 0) {
         setAddress(null);
         setSigner(null);
+        setChainId(null);
+        setNetworkName(null);
+        setBalance(null);
       } else {
         setAddress(accounts[0]);
+        const provider = new BrowserProvider(window.ethereum!, 'any');
+        const s = await provider.getSigner();
+        setSigner(s);
+        refreshStats(accounts[0], s);
       }
     };
     
@@ -88,7 +120,7 @@ export function useWallet(): WalletState {
       window.ethereum?.removeListener('accountsChanged', handleChange);
       window.ethereum?.removeListener('chainChanged', handleChainChanged);
     };
-  }, []);
+  }, [refreshStats]);
 
   const connect = useCallback(async () => {
     if (!window.ethereum) {
@@ -130,6 +162,7 @@ export function useWallet(): WalletState {
 
       setAddress(accounts[0]);
       setSigner(s);
+      refreshStats(accounts[0], s);
       toast.success(`Connected: ${accounts[0].slice(0, 6)}…${accounts[0].slice(-4)}`);
     } catch (err: any) {
       if (err.code !== 4001) {
@@ -138,7 +171,7 @@ export function useWallet(): WalletState {
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  }, [refreshStats]);
 
   const linkWallet = useCallback(async () => {
     if (!user || !address || !signer) {
@@ -176,13 +209,19 @@ export function useWallet(): WalletState {
   const disconnect = useCallback(() => {
     setAddress(null);
     setSigner(null);
+    setChainId(null);
+    setNetworkName(null);
+    setBalance(null);
   }, []);
 
   return {
     address,
     signer,
+    chainId,
+    networkName,
+    balance,
     isConnecting,
-    connecting: isConnecting, // backward compat alias
+    connecting: isConnecting,
     isLinking,
     isLinked,
     connect,

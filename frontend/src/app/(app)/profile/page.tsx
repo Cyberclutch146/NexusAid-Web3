@@ -7,8 +7,10 @@ import { updateUserProfile } from '@/services/userService';
 import { uploadImage } from '@/services/storageService';
 import { toast } from 'sonner';
 import { getUserAvatar, DEFAULT_AVATAR } from '@/utils/avatar';
+import { getRegisteredEvents } from '@/services/eventService';
 import { useWallet } from '@/hooks/useWallet';
 import { BadgeDisplay } from '@/components/web3/BadgeDisplay';
+import { RollingCounter } from '@/components/ui/RollingCounter';
 import { BrowserProvider, formatEther, parseEther, Contract } from 'ethers';
 
 export default function ProfilePage() {
@@ -16,6 +18,7 @@ export default function ProfilePage() {
   const { address, signer, isConnecting, isLinking, isLinked, connect, linkWallet } = useWallet();
 
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [volunteerHours, setVolunteerHours] = useState(0);
   const [tipAmount, setTipAmount] = useState('0.01');
   const [isTipping, setIsTipping] = useState(false);
 
@@ -43,8 +46,27 @@ export default function ProfilePage() {
       setEquipment(profile.equipment ? profile.equipment.join(', ') : '');
       setTravelRadius(profile.travelRadius || 10);
       setAvailability(profile.availability || 'anytime');
+      setVolunteerHours(profile.volunteerHours || 0);
     }
   }, [profile, isEditing]);
+
+  // Fetch real-time volunteer hours from registrations
+  useEffect(() => {
+    if (!user) return;
+    const fetchHours = async () => {
+      try {
+        const events = await getRegisteredEvents(user.uid);
+        // Mock: each event attended is 5 hours
+        const realHours = events.length * 5;
+        if (realHours > volunteerHours) {
+          setVolunteerHours(realHours);
+        }
+      } catch (err) {
+        console.error("Failed to fetch volunteer hours:", err);
+      }
+    };
+    fetchHours();
+  }, [user]);
 
   // Fetch wallet balance
   useEffect(() => {
@@ -83,6 +105,22 @@ export default function ProfilePage() {
         value: parseEther(tipAmount),
       });
       await tx.wait();
+      
+      // ── Sync with Firestore ──
+      try {
+        await fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'increment-donations', 
+            userId: user.uid, 
+            data: { amount: parseFloat(tipAmount) * 2500 } // Mock conversion 1 ETH = $2500
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to sync donation to profile:", err);
+      }
+
       toast.success(`Sent ${tipAmount} ETH! Tx: ${tx.hash.slice(0, 10)}…`, { id: loadingToast });
       // Refresh balance
       const provider = new BrowserProvider(window.ethereum!, 'any');
@@ -555,7 +593,9 @@ export default function ProfilePage() {
               </div>
             </div>
             <p className="text-on-surface-variant text-sm font-medium mb-1">Hours Volunteered</p>
-            <p className="font-headline text-3xl font-bold text-on-surface">{profile.volunteerHours || 0}</p>
+            <p className="font-headline text-3xl font-bold text-on-surface">
+              <RollingCounter value={volunteerHours} />
+            </p>
           </div>
 
           {/* Donated Card */}
@@ -568,7 +608,9 @@ export default function ProfilePage() {
               </div>
             </div>
             <p className="text-on-surface-variant text-sm font-medium mb-1">Total Donated</p>
-            <p className="font-headline text-3xl font-bold text-on-surface">${(profile.totalDonated || 0).toLocaleString()}</p>
+            <p className="font-headline text-3xl font-bold text-on-surface">
+              <RollingCounter value={profile.totalDonated || 0} isCurrency />
+            </p>
           </div>
         </div>
       </section>

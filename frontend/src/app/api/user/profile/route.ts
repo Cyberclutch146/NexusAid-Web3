@@ -42,6 +42,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: "Profile updated." });
     }
 
+    if (action === "increment-donations") {
+      const { amount } = data;
+      await userDocRef.update({
+        totalDonated: require("firebase-admin").firestore.FieldValue.increment(amount || 0),
+        updatedAt: new Date(),
+      });
+      return NextResponse.json({ success: true, message: "Donation tracked." });
+    }
+
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   } catch (error: any) {
     console.error("API /user/profile Error:", error);
