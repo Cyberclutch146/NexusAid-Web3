@@ -26,5 +26,9 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "hardhat": "^2.28.6"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "next-pwa": "^5.6.0"
   }
 }
