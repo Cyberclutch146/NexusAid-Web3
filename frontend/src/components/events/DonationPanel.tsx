@@ -175,34 +175,27 @@ export function DonationPanel({
     setCashLoading(true);
 
     try {
-      const token = await user.getIdToken();
-      const res = await fetch('/api/verify-payment', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          method: 'cash',
-          amount: cashAmount,
-          eventId,
-          eventTitle,
-          userId: user.uid,
-          userName: cashDonorName.trim(),
-          userEmail: cashDonorEmail.trim() || (user.email || ''),
-          recordedByName: profile?.displayName || user.displayName || 'Organizer',
-        }),
+      // Cash donations go through the pending verification workflow.
+      // An admin must approve them via the approve-donation API before
+      // they are recorded in the final donation ledger.
+      await submitPendingDonation({
+        eventId,
+        eventTitle,
+        userId: user.uid,
+        userName: cashDonorName.trim(),
+        userEmail: cashDonorEmail.trim() || (user.email || ''),
+        amount: cashAmount,
+        reference: `CASH-${Date.now()}`,
+        notes: `Recorded by ${profile?.displayName || user.displayName || 'Organizer'}`,
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to record donation');
-      toast.success(`✅ Cash donation recorded! Receipt: ${result.receiptId}`);
+      toast.success('✅ Cash donation submitted for admin verification!');
       setCashDonorName('');
       setCashDonorEmail('');
       setCashAmount(500);
       onActionComplete?.();
     } catch (err: any) {
       console.error('Cash donation error:', err);
-      toast.error(err.message || 'Failed to record cash donation');
+      toast.error(err.message || 'Failed to submit cash donation');
     } finally {
       setCashLoading(false);
     }
@@ -429,7 +422,7 @@ export function DonationPanel({
                   </span>
                 </div>
                 <p className="text-xs text-on-surface-variant mb-4">
-                  Record an offline / cash donation received at the event. This will be tracked in the donation ledger and a receipt will be emailed to the donor.
+                  Record an offline / cash donation received at the event. This will be submitted for admin verification before being added to the donation ledger.
                 </p>
 
                 <div className="space-y-3">
@@ -485,7 +478,7 @@ export function DonationPanel({
                       color: '#1a1206',
                     }}
                   >
-                    {cashLoading ? 'Recording...' : `Record ₹${cashAmount} Cash Donation`}
+                    {cashLoading ? 'Submitting...' : `Submit ₹${cashAmount} for Verification`}
                   </button>
                 </div>
               </div>
