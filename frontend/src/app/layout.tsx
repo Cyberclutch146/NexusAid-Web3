@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Elms_Sans, Literata, Nunito_Sans } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
@@ -23,8 +23,52 @@ const elmsSans = Elms_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'NexusAid - Outreach & Relief',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  applicationName: 'NexusAid',
+  title: {
+    default: 'NexusAid - Outreach & Relief',
+    template: '%s | NexusAid',
+  },
   description: 'Rooted in community, grown through care.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'NexusAid',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  openGraph: {
+    title: 'NexusAid - Outreach & Relief',
+    description: 'Community relief, event coordination, emergency alerts, and volunteer response tools.',
+    siteName: 'NexusAid',
+    images: [{ url: '/images/banner.png', width: 1024, height: 1024, alt: 'NexusAid' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'NexusAid - Outreach & Relief',
+    description: 'Community relief, event coordination, emergency alerts, and volunteer response tools.',
+    images: ['/images/banner.png'],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F7F4ED' },
+    { media: '(prefers-color-scheme: dark)', color: '#111411' },
+  ],
+  colorScheme: 'light dark',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
