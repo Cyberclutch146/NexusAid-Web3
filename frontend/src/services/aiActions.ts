@@ -275,7 +275,8 @@ export async function handleGetEventDetails(eventTitle: string): Promise<ActionR
 
 export async function handleRequestSignup(
   eventTitle: string,
-  userEmail: string
+  userEmail: string,
+  userId: string
 ): Promise<ActionResult> {
   try {
     if (!userEmail) {
@@ -294,6 +295,30 @@ export async function handleRequestSignup(
         success: false,
         message: `I couldn't find an event called "${eventTitle}". Could you double-check the name? You can also ask me to search for events.`,
       };
+    }
+
+    // Check if the user is already registered for this event
+    if (userId && adminDb) {
+      try {
+        const volunteerSnap = await adminDb
+          .collection("events").doc(event.id)
+          .collection("volunteers").doc(userId)
+          .get();
+        if (volunteerSnap.exists) {
+          return {
+            success: true,
+            message: `You're already signed up as a volunteer for **${event.title}**! No need to register again. You can view the event page for details.`,
+            action: {
+              type: "signed_up",
+              url: `/event/${event.id}`,
+              eventId: event.id,
+              eventTitle: event.title,
+            },
+          };
+        }
+      } catch (checkErr) {
+        console.warn("Pre-registration check failed, proceeding with OTP flow:", checkErr);
+      }
     }
 
     // Check if volunteer slots are available
@@ -508,7 +533,7 @@ export async function executeFunction(
     case "get_event_details":
       return handleGetEventDetails(args.eventTitle);
     case "request_signup":
-      return handleRequestSignup(args.eventTitle, userEmail || '');
+      return handleRequestSignup(args.eventTitle, userEmail || '', userId);
     case "confirm_signup":
       return handleConfirmSignup(args.eventId, args.eventTitle, args.otpCode, userId, userName, userEmail || '');
     case "navigate_to_page":
