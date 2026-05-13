@@ -32,8 +32,6 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
   const [pendingDonations, setPendingDonations] = useState<PendingDonation[]>([]);
   const [expenditureDesc, setExpenditureDesc] = useState('');
   const [expenditureAmount, setExpenditureAmount] = useState('');
-  const [smsNumber, setSmsNumber] = useState('');
-  const [sendingSms, setSendingSms] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -145,53 +143,6 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
     }
   };
 
-  const handleSendSms = async () => {
-    if (!smsNumber.trim()) {
-      toast.error('Please enter a phone number.');
-      return;
-    }
-
-    if (!event) {
-      toast.error('Event not loaded.');
-      return;
-    }
-
-    setSendingSms(true);
-
-    try {
-      const res = await fetch('/api/sms', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: smsNumber,
-          message: `Hi! You are invited to join "${event.title}" on NexusAid. Location: ${event.location}. Please open the platform to volunteer or support this event.`,
-          url: window.location.href,
-        }),
-      });
-
-      let data: any = {};
-
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to send SMS.');
-      }
-
-      toast.success('SMS sent successfully.');
-      setSmsNumber('');
-    } catch (error) {
-      console.error('Failed to send SMS:', error);
-      toast.error('Failed to send SMS.');
-    } finally {
-      setSendingSms(false);
-    }
-  };
 
   const handleEmailAll = async () => {
     const emails = volunteers
@@ -369,23 +320,6 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
             <Mail size={16} />
             Email All
           </button>
-          <div className="flex items-center gap-2">
-            <input
-              value={smsNumber}
-              onChange={(e) => setSmsNumber(e.target.value)}
-              placeholder="+91XXXXXXXXXX"
-              className="min-w-[190px] rounded-full border px-4 py-2.5 text-sm bg-surface-bright outline-none focus:ring-2 focus:ring-primary"
-            />
-
-            <button
-              onClick={handleSendSms}
-              disabled={sendingSms}
-              className="premium-button-muted text-sm gap-2 disabled:opacity-60"
-            >
-              <Send size={16} />
-              {sendingSms ? 'Sending...' : 'Send SMS'}
-            </button>
-          </div>
 
           <button
             onClick={handleExportCSV}

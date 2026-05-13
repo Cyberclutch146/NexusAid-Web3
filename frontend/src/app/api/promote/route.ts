@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { sendEmail } from "@/services/emailService";
-import { sendSMS } from "@/services/smsService";
 import { adminDb } from "@/lib/firebase-admin";
 
 const isValidEmail = (email: string) =>
@@ -47,7 +46,7 @@ export async function POST(req: NextRequest) {
     const sheet = workbook.Sheets[sheetName];
     const rawData = XLSX.utils.sheet_to_json(sheet) as any[];
 
-    const contacts: { email?: string, phone?: string }[] = [];
+    const contacts: { email?: string }[] = [];
     const parsedData: any[] = [];
 
     rawData.forEach((row: any) => {
@@ -65,7 +64,7 @@ export async function POST(req: NextRequest) {
       const emailValue = lowerRow.email || lowerRow['email address'] || lowerRow.address || lowerRow.contact;
       const phoneValue = lowerRow.phone || lowerRow['phone number'] || lowerRow.mobile || lowerRow.contact;
       
-      const contact: { email?: string, phone?: string } = {};
+      const contact: { email?: string } = {};
 
       if (emailValue) {
         const trimmedEmail = String(emailValue).trim();
@@ -76,17 +75,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (phoneValue) {
-        const trimmedPhone = String(phoneValue).replace(/\D/g, ''); // Extract digits
-        if (trimmedPhone.length >= 10) { // Basic validation
-          // Assuming India format requires 10 digits
-          contact.phone = trimmedPhone.slice(-10); 
-        } else {
-          console.log("API: Skipped invalid phone format:", trimmedPhone);
-        }
-      }
-
-      if (contact.email || contact.phone) {
+      if (contact.email) {
         contacts.push(contact);
       }
     });
@@ -95,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     if (contacts.length === 0) {
       return NextResponse.json({ 
-        error: "No valid emails or phone numbers found in CSV",
+        error: "No valid emails found in the uploaded file",
         debug: {
           firstRowSeen: parsedData[0] || null
         }
@@ -106,14 +95,9 @@ export async function POST(req: NextRequest) {
     const results = await Promise.allSettled(
       contacts.map(async (contact) => {
         try {
-          const tasks = [];
           if (contact.email) {
-            tasks.push(sendEmail(contact.email, message));
+            await sendEmail(contact.email, message);
           }
-          if (contact.phone) {
-            tasks.push(sendSMS(contact.phone, message));
-          }
-          await Promise.all(tasks);
           
           try {
             await db.collection("promotion_logs").add({
