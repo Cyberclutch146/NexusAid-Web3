@@ -248,15 +248,15 @@ export default function AboutPage() {
       </section>
 
       <section className="mt-14 pt-10 animate-fade-in-up delay-300" style={{ borderTop: '1px solid var(--glass-border)' }}>
-        <div className="mb-8">
+        <div className="mb-8 text-center mx-auto max-w-2xl">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">The team</p>
           <h2 className="mt-2 text-3xl md:text-4xl font-serif tracking-tight text-gradient-earth">The people shaping the platform.</h2>
-          <p className="mt-3 text-on-surface-variant text-lg max-w-2xl">
+          <p className="mt-3 text-on-surface-variant text-lg">
             A focused team of builders working across interface design, intelligence, systems, and local response tooling.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-5xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {TEAM_MEMBERS.map((member, index) => (
             <TeamMemberCard key={member.name} member={member} index={index} />
           ))}
