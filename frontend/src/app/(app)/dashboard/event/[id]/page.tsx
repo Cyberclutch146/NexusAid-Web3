@@ -91,14 +91,16 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
 
   const handleApprovePending = async (pending: PendingDonation) => {
     try {
+      const token = await user?.getIdToken();
       const res = await fetch('/api/approve-donation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
         body: JSON.stringify({
           eventId,
           pendingId: pending.id,
-          adminEmail: user?.email,
-          adminUid: user?.uid,
           adminName: user?.displayName || 'Admin',
         }),
       });

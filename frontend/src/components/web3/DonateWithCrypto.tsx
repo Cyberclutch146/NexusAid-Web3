@@ -56,9 +56,13 @@ export function DonateWithCrypto({ campaignId, eventId, eventTitle, onSuccess }:
       if (user && eventId) {
         try {
           const network = await signer.provider.getNetwork();
+          const token = await user.getIdToken();
           const verifyRes = await fetch('/api/verify-payment', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({
               method: 'crypto',
               txHash: tx.hash,

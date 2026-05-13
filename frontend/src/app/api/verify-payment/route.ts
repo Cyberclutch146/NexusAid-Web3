@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { sendDonationReceipt } from '@/services/emailService';
 import { FieldValue } from 'firebase-admin/firestore';
 import { ADMIN_EMAILS } from '@/services/eventService';
@@ -52,8 +52,6 @@ interface CashPayload {
   userId: string;           // donor user ID
   userName: string;         // donor display name
   userEmail: string;        // donor email (for receipt)
-  recordedByEmail: string;  // must be an ADMIN_EMAIL or event organizer
-  recordedByUid: string;
   recordedByName: string;
 }
 
@@ -63,12 +61,21 @@ type VerifyPayload = RazorpayPayload | CryptoPayload | CashPayload;
 
 export async function POST(request: Request) {
   try {
-    if (!adminDb) {
+    if (!adminDb || !adminAuth) {
       return NextResponse.json(
         { error: 'Firebase Admin not configured. Add serviceAccountKey.json or FIREBASE_PRIVATE_KEY env var.' },
         { status: 503 }
       );
     }
+
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized: missing or invalid token' }, { status: 401 });
+    }
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const callerUid = decodedToken.uid;
+    const callerEmail = decodedToken.email || '';
 
     const body: VerifyPayload = await request.json();
 
@@ -187,10 +194,10 @@ export async function POST(request: Request) {
     } else if (body.method === 'cash') {
       // ── Cash / mock donation — admin/organizer only ─────────────────────────
       // Server-side gate: caller must be an ADMIN or the event's own organizer
-      if (!ADMIN_EMAILS.includes(body.recordedByEmail)) {
+      if (!ADMIN_EMAILS.includes(callerEmail)) {
         const eventSnap = await adminDb.collection('events').doc(body.eventId).get();
         const organizerId = eventSnap.data()?.organizerId;
-        if (organizerId !== body.recordedByUid) {
+        if (organizerId !== callerUid) {
           return NextResponse.json(
             { error: 'Forbidden: only admins or the event organizer can record cash donations' },
             { status: 403 }
@@ -209,8 +216,8 @@ export async function POST(request: Request) {
         amount: body.amount,
         currency: 'INR',
         method: 'cash',
-        recordedBy: body.recordedByUid,
-        recordedByName: body.recordedByName,
+        recordedBy: callerUid,
+        recordedByName: body.recordedByName || callerEmail,
         reference,
         receiptId,
         createdAt: FieldValue.serverTimestamp(),

@@ -121,9 +121,13 @@ export function DonationPanel({
         },
         handler: async (paymentResponse: any) => {
           try {
+            const token = await user!.getIdToken();
             const verifyRes = await fetch('/api/verify-payment', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
               body: JSON.stringify({
                 method: 'razorpay',
                 razorpayPaymentId: paymentResponse.razorpay_payment_id,
@@ -171,9 +175,13 @@ export function DonationPanel({
     setCashLoading(true);
 
     try {
+      const token = await user.getIdToken();
       const res = await fetch('/api/verify-payment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           method: 'cash',
           amount: cashAmount,
@@ -182,8 +190,6 @@ export function DonationPanel({
           userId: user.uid,
           userName: cashDonorName.trim(),
           userEmail: cashDonorEmail.trim() || (user.email || ''),
-          recordedByEmail: user.email || '',
-          recordedByUid: user.uid,
           recordedByName: profile?.displayName || user.displayName || 'Organizer',
         }),
       });
