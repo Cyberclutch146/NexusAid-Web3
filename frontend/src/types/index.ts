@@ -33,9 +33,16 @@ export interface UserProfile {
 export type UserProfileCreate = Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>;
 
 // ─── Event ──────────────────────────────────────────────
+export interface ExpenditureLog {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+}
+
 export interface EventNeeds {
   volunteers?: { current: number; goal: number };
-  funds?: { current: number; goal: number };
+  funds?: { current: number; goal: number; expended?: number; expenditureLogs?: ExpenditureLog[] };
   goods?: string[];
 }
 

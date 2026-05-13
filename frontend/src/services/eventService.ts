@@ -1,6 +1,6 @@
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, runTransaction, where, limit, startAfter, documentId, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import { CommunityEvent, CommunityEventCreate } from '@/types';
+import { CommunityEvent, CommunityEventCreate, ExpenditureLog } from '@/types';
 import { createNotification } from './notificationService';
 
 const EVENTS_COLLECTION = 'events';
@@ -182,6 +182,45 @@ export const updateDonation = async (eventId: string, amount: number): Promise<v
 
     transaction.update(eventRef, {
       'needs.funds.current': currentFunds + amount,
+      updatedAt: new Date()
+    });
+  });
+};
+
+// ─── Expenditure ────────────────────────────────────────
+export const addExpenditureLog = async (eventId: string, log: ExpenditureLog): Promise<void> => {
+  const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+  await runTransaction(db, async (transaction) => {
+    const eventSnap = await transaction.get(eventRef);
+    if (!eventSnap.exists()) throw new Error('Event not found');
+
+    const data = eventSnap.data();
+    const logs = data.needs?.funds?.expenditureLogs || [];
+    const updatedLogs = [...logs, log];
+    const newTotal = updatedLogs.reduce((sum, item) => sum + item.amount, 0);
+
+    transaction.update(eventRef, {
+      'needs.funds.expenditureLogs': updatedLogs,
+      'needs.funds.expended': newTotal,
+      updatedAt: new Date()
+    });
+  });
+};
+
+export const deleteExpenditureLog = async (eventId: string, logId: string): Promise<void> => {
+  const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+  await runTransaction(db, async (transaction) => {
+    const eventSnap = await transaction.get(eventRef);
+    if (!eventSnap.exists()) throw new Error('Event not found');
+
+    const data = eventSnap.data();
+    const logs = data.needs?.funds?.expenditureLogs || [];
+    const updatedLogs = logs.filter((l: any) => l.id !== logId);
+    const newTotal = updatedLogs.reduce((sum: number, item: any) => sum + item.amount, 0);
+
+    transaction.update(eventRef, {
+      'needs.funds.expenditureLogs': updatedLogs,
+      'needs.funds.expended': newTotal,
       updatedAt: new Date()
     });
   });

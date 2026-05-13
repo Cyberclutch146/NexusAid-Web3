@@ -385,6 +385,30 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
                 goal={event.needs.funds.goal}
                 label={`$${event.needs.funds.current.toLocaleString()} raised of $${event.needs.funds.goal.toLocaleString()} goal`}
               />
+              {event.needs.funds.expenditureLogs && event.needs.funds.expenditureLogs.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-glass">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-[20px] text-primary">receipt_long</span>
+                    <h3 className="font-bold text-on-surface">Transparent Expenditure Ledger</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {event.needs.funds.expenditureLogs.map(log => (
+                      <div key={log.id} className="flex justify-between items-center p-3 rounded-xl bg-surface-container/30 border border-glass">
+                        <div>
+                          <p className="font-semibold text-sm text-on-surface">{log.description}</p>
+                          <p className="text-xs text-on-surface-variant">{new Date(log.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="font-bold text-on-surface">
+                          ₹{log.amount.toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex justify-end text-sm">
+                    <span className="text-on-surface-variant font-medium">Total Expended: <strong className="text-on-surface ml-1">₹{event.needs.funds.expended?.toLocaleString() || 0}</strong></span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

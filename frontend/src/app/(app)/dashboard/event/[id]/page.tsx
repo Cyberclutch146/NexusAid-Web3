@@ -3,10 +3,10 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getEventById, getEventVolunteers, updateVolunteerStatus, EventVolunteer, deleteEvent, ADMIN_EMAILS, getEventGoodsPledges } from '@/services/eventService';
+import { getEventById, getEventVolunteers, updateVolunteerStatus, EventVolunteer, deleteEvent, ADMIN_EMAILS, getEventGoodsPledges, addExpenditureLog, deleteExpenditureLog } from '@/services/eventService';
 import { getEventDonations, DonationRecord } from '@/services/donationService';
-import { CommunityEvent } from '@/types';
-import { ArrowLeft, Users, Download, Calendar, Mail, CheckCircle, Circle, Trash2, Send, Pencil, AlertTriangle, QrCode, Package, Banknote, ShieldCheck } from 'lucide-react';
+import { CommunityEvent, ExpenditureLog } from '@/types';
+import { ArrowLeft, Users, Download, Calendar, Mail, CheckCircle, Circle, Trash2, Send, Pencil, AlertTriangle, QrCode, Package, Banknote, ShieldCheck, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import PromotionModal from '@/components/events/PromotionModal';
 import { SentinelAlert } from '@/types/sentinel';
@@ -16,7 +16,7 @@ import { MilestoneTracker } from '@/components/web3/MilestoneTracker';
 export default function OrganizerEventPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   // Unwrap params using React.use()
   const resolvedParams = use(params);
   const eventId = resolvedParams.id;
@@ -28,7 +28,9 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
   const [donations, setDonations] = useState<DonationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'volunteers' | 'goods' | 'donations'>('volunteers');
+  const [activeTab, setActiveTab] = useState<'volunteers' | 'goods' | 'donations' | 'expenditures'>('volunteers');
+  const [expenditureDesc, setExpenditureDesc] = useState('');
+  const [expenditureAmount, setExpenditureAmount] = useState('');
   const [smsNumber, setSmsNumber] = useState('');
   const [sendingSms, setSendingSms] = useState(false);
 
@@ -74,7 +76,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
     try {
       const newStatus = !currentStatus;
       await updateVolunteerStatus(eventId, volunteerId, newStatus);
-      setVolunteers(prev => 
+      setVolunteers(prev =>
         prev.map(v => v.id === volunteerId ? { ...v, attended: newStatus } : v)
       );
       toast.success(`Volunteer marked as ${newStatus ? 'attended' : 'not attended'}.`);
@@ -86,7 +88,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
 
   const handleDeleteEvent = async () => {
     if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) return;
-    
+
     try {
       await deleteEvent(eventId);
       toast.success('Event deleted successfully.');
@@ -97,7 +99,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
     }
   };
 
-    const handleSendSms = async () => {
+  const handleSendSms = async () => {
     if (!smsNumber.trim()) {
       toast.error('Please enter a phone number.');
       return;
@@ -149,7 +151,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
     const emails = volunteers
       .map(v => v.userEmail)
       .filter((email): email is string => Boolean(email));
-    
+
     if (emails.length === 0) {
       toast.info('No volunteer emails to send.');
       return;
@@ -157,7 +159,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
 
     const subject = encodeURIComponent(`Update regarding ${event?.title || 'Community Event'}`);
     const mailtoLink = `mailto:?bcc=${emails.join(',')}&subject=${subject}`;
-    
+
     // Trigger the mail client IMMEDIATELY so the browser doesn't block it due to async delay
     window.location.href = mailtoLink;
 
@@ -245,29 +247,29 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
 
   const intersectingAlerts = alerts.filter((alert: SentinelAlert) => {
     if (!eventLat || !eventLng) return false;
-    
+
     if (alert.severity === 'Extreme' && alert.polygon && alert.polygon.length > 2) {
       if (isPointInPolygon({ lat: eventLat, lng: eventLng }, alert.polygon)) {
         return true;
       }
     }
-    
+
     if (alert.coordinates?.lat && alert.coordinates?.lng) {
       const distance = getDistanceMiles(
-        eventLat, 
-        eventLng, 
-        alert.coordinates.lat, 
+        eventLat,
+        eventLng,
+        alert.coordinates.lat,
         alert.coordinates.lng
       );
       return distance <= 30;
     }
-    
+
     return false;
   });
 
   return (
     <main className="flex-1 p-4 md:p-10 max-w-7xl mx-auto w-full pb-28 md:pb-10">
-      <button 
+      <button
         onClick={() => router.push('/dashboard')}
         className="flex items-center gap-2 text-on-surface-variant hover:text-on-surface mb-6 transition-colors font-semibold animate-fade-in-up"
       >
@@ -283,17 +285,17 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
             {event.eventDate ? new Date(event.eventDate).toLocaleDateString() : (event.createdAt?.toDate?.()?.toLocaleDateString() || 'TBD')} • {event.location}
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3 pt-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
-          <button 
+          <button
             onClick={() => router.push(`/dashboard/event/${eventId}/edit`)}
             className="premium-button-muted text-sm gap-2"
           >
             <Pencil size={16} />
             Edit Event
           </button>
-          
-          <button 
+
+          <button
             onClick={() => router.push(`/dashboard/event/${eventId}/scan`)}
             className="px-4 py-2.5 rounded-full font-semibold flex items-center gap-2 transition-all text-sm hover:-translate-y-0.5"
             style={{
@@ -305,16 +307,16 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
             <QrCode size={16} />
             Scan QR
           </button>
-          
-          <button 
+
+          <button
             onClick={() => setIsPromotionModalOpen(true)}
             className="premium-button-primary text-sm gap-2"
           >
             <Send size={16} />
             Promote Campaign
           </button>
-          
-          <button 
+
+          <button
             onClick={handleEmailAll}
             className="premium-button-muted text-sm gap-2"
           >
@@ -338,18 +340,18 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
               {sendingSms ? 'Sending...' : 'Send SMS'}
             </button>
           </div>
-          
-          <button 
+
+          <button
             onClick={handleExportCSV}
             className="premium-button-muted text-sm gap-2"
           >
             <Download size={16} />
             Export CSV
           </button>
-          
+
           <div className="flex-1 min-w-[20px] hidden md:block"></div>
-          
-          <button 
+
+          <button
             onClick={handleDeleteEvent}
             className="px-4 py-2.5 rounded-full font-semibold flex items-center gap-2 transition-all text-sm mt-2 md:mt-0 hover:-translate-y-0.5"
             style={{
@@ -383,11 +385,10 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
           <div className="space-y-3">
             {intersectingAlerts.map(alert => (
               <div key={alert.id} className="flex flex-col sm:flex-row sm:items-start gap-3 p-3 rounded-xl" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
-                <span className={`px-2.5 py-1 text-xs font-bold rounded-lg whitespace-nowrap w-fit ${
-                  alert.severity === 'Extreme' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                  alert.severity === 'Severe' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                }`}>
+                <span className={`px-2.5 py-1 text-xs font-bold rounded-lg whitespace-nowrap w-fit ${alert.severity === 'Extreme' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                    alert.severity === 'Severe' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                  }`}>
                   {alert.severity} • {alert.type}
                 </span>
                 <div className="flex-1">
@@ -398,7 +399,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
             ))}
           </div>
           <div className="mt-4 flex gap-3">
-            <button 
+            <button
               onClick={handleEmailAll}
               className="px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all hover:-translate-y-0.5"
               style={{
@@ -416,10 +417,10 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 animate-fade-in-up delay-300">
         {/* Left Column: Stats */}
         <div className="md:col-span-1 space-y-6">
-          
+
           {event.onChainCampaignId != null && (
             <div className="premium-glass p-6">
-              <MilestoneTracker 
+              <MilestoneTracker
                 escrowCampaignId={event.onChainCampaignId}
                 organizerId={event.organizerId}
                 isAdmin={isAdmin}
@@ -436,7 +437,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
               {currentVols} <span className="text-sm font-normal text-on-surface-variant">/ {goalVols}</span>
             </div>
             <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--color-surface-variant-base)' }}>
-              <div 
+              <div
                 className="h-full rounded-full transition-all duration-1000 progress-glow"
                 style={{ width: `${progress}%`, background: 'linear-gradient(90deg, var(--color-primary-base), var(--color-sage))' }}
               ></div>
@@ -452,7 +453,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
               {volunteers.filter(v => v.attended).length} <span className="text-sm font-normal text-on-surface-variant">/ {volunteers.length}</span>
             </div>
             <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--color-surface-variant-base)' }}>
-              <div 
+              <div
                 className="h-full rounded-full transition-all duration-1000 progress-glow-amber"
                 style={{ width: `${Math.min(100, Math.round((volunteers.filter(v => v.attended).length / (volunteers.length || 1)) * 100))}%`, background: 'linear-gradient(90deg, var(--color-warm-amber), var(--color-earth-gold))' }}
               ></div>
@@ -486,11 +487,10 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
               <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--color-surface-variant-base)' }}>
                 <button
                   onClick={() => setActiveTab('volunteers')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    activeTab === 'volunteers'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'volunteers'
                       ? 'bg-surface-bright text-on-surface shadow-sm'
                       : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
+                    }`}
                 >
                   <Users size={15} />
                   Volunteers
@@ -501,11 +501,10 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                 {event.needs?.goods && event.needs.goods.length > 0 && (
                   <button
                     onClick={() => setActiveTab('goods')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      activeTab === 'goods'
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'goods'
                         ? 'bg-surface-bright text-on-surface shadow-sm'
                         : 'text-on-surface-variant hover:text-on-surface'
-                    }`}
+                      }`}
                   >
                     <Package size={15} />
                     Goods Pledges
@@ -514,21 +513,33 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                     </span>
                   </button>
                 )}
-                  <button
-                    onClick={() => setActiveTab('donations')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      activeTab === 'donations'
-                        ? 'bg-surface-bright text-on-surface shadow-sm'
-                        : 'text-on-surface-variant hover:text-on-surface'
+                <button
+                  onClick={() => setActiveTab('donations')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'donations'
+                      ? 'bg-surface-bright text-on-surface shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
                     }`}
-                  >
-                    <Banknote size={15} />
-                    Donations
-                    <span className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: 'rgba(194,113,91,0.15)', color: 'var(--color-terracotta)' }}>
-                      {donations.length}
-                    </span>
-                  </button>
-                </div>
+                >
+                  <Banknote size={15} />
+                  Donations
+                  <span className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: 'rgba(194,113,91,0.15)', color: 'var(--color-terracotta)' }}>
+                    {donations.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('expenditures')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'expenditures'
+                      ? 'bg-surface-bright text-on-surface shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                >
+                  <Receipt size={15} />
+                  Expenditures
+                  <span className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: 'rgba(128,128,128,0.15)', color: 'var(--color-on-surface)' }}>
+                    {event.needs?.funds?.expenditureLogs?.length || 0}
+                  </span>
+                </button>
+              </div>
               <div>
                 {activeTab === 'donations' && (
                   <button
@@ -582,7 +593,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                           </td>
                           <td className="px-6 py-4 text-right">
                             {vol.userEmail ? (
-                              <a 
+                              <a
                                 href={`mailto:${vol.userEmail}`}
                                 className="p-2 rounded-lg transition-all inline-block hover:bg-primary/10"
                                 style={{ color: 'var(--color-primary-base)' }}
@@ -591,7 +602,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                                 <Mail size={18} />
                               </a>
                             ) : (
-                              <button 
+                              <button
                                 onClick={() => toast.info('No email provided for this volunteer.')}
                                 className="p-2 rounded-lg transition-colors inline-block cursor-not-allowed"
                                 style={{ color: 'var(--color-outline-base)' }}
@@ -677,8 +688,8 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                       {donations.map(don => {
                         const methodColors: Record<string, { bg: string; text: string }> = {
                           razorpay: { bg: 'rgba(59,107,74,0.12)', text: 'var(--color-primary-base)' },
-                          crypto:   { bg: 'rgba(29,161,242,0.12)', text: '#1DA1F2' },
-                          cash:     { bg: 'rgba(139,109,46,0.12)', text: 'var(--color-warm-amber)' },
+                          crypto: { bg: 'rgba(29,161,242,0.12)', text: '#1DA1F2' },
+                          cash: { bg: 'rgba(139,109,46,0.12)', text: 'var(--color-warm-amber)' },
                         };
                         const mc = methodColors[don.method] || methodColors.cash;
                         return (
@@ -715,11 +726,138 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                 </div>
               )
             )}
+
+            {/* Expenditures Tab */}
+            {activeTab === 'expenditures' && (
+              <div>
+                <div className="p-6 bg-surface-container/20 border-b border-glass">
+                  <h4 className="font-bold mb-3">Log New Expenditure</h4>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      placeholder="Description (e.g., Food, Transport)"
+                      className="flex-1 rounded-xl border border-glass px-4 py-2.5 text-sm bg-surface-bright outline-none focus:ring-2 focus:ring-primary"
+                      value={expenditureDesc}
+                      onChange={(e) => setExpenditureDesc(e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Amount (₹)"
+                      className="w-full sm:w-32 rounded-xl border border-glass px-4 py-2.5 text-sm bg-surface-bright outline-none focus:ring-2 focus:ring-primary"
+                      value={expenditureAmount}
+                      onChange={(e) => setExpenditureAmount(e.target.value)}
+                    />
+                    <button
+                      onClick={async () => {
+                        const amount = parseFloat(expenditureAmount);
+                        if (!expenditureDesc.trim() || isNaN(amount) || amount <= 0) {
+                          toast.error('Please enter a valid description and amount.');
+                          return;
+                        }
+                        const newLog: ExpenditureLog = {
+                          id: Math.random().toString(36).substring(2, 9),
+                          description: expenditureDesc.trim(),
+                          amount,
+                          date: new Date().toISOString()
+                        };
+                        try {
+                          await addExpenditureLog(event.id, newLog);
+                          toast.success('Expenditure logged successfully');
+                          setExpenditureDesc('');
+                          setExpenditureAmount('');
+                          const updatedLogs = [...(event.needs?.funds?.expenditureLogs || []), newLog];
+                          setEvent({
+                            ...event,
+                            needs: {
+                              ...event.needs,
+                              funds: {
+                                ...event.needs?.funds,
+                                current: event.needs?.funds?.current || 0,
+                                goal: event.needs?.funds?.goal || 0,
+                                expended: updatedLogs.reduce((s, l) => s + l.amount, 0),
+                                expenditureLogs: updatedLogs
+                              }
+                            }
+                          });
+                        } catch (e) {
+                          toast.error('Failed to log expenditure');
+                          console.error(e);
+                        }
+                      }}
+                      className="px-6 py-2.5 rounded-xl font-bold transition-all"
+                      style={{ background: 'var(--color-primary-base)', color: 'white' }}
+                    >
+                      Log
+                    </button>
+                  </div>
+                </div>
+
+                {!event.needs?.funds?.expenditureLogs || event.needs.funds.expenditureLogs.length === 0 ? (
+                  <div className="p-12 text-center text-on-surface-variant">
+                    <Receipt size={48} className="mx-auto mb-4 opacity-20" />
+                    <p>No expenditures logged yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--glass-border)' }} className="text-sm text-on-surface-variant">
+                          <th className="px-6 py-4 font-medium">Description</th>
+                          <th className="px-6 py-4 font-medium">Amount</th>
+                          <th className="px-6 py-4 font-medium">Date</th>
+                          <th className="px-6 py-4 font-medium text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {event.needs.funds.expenditureLogs.map(log => (
+                          <tr key={log.id} className="hover:bg-surface-container/30 transition-colors" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                            <td className="px-6 py-4 font-medium">{log.description}</td>
+                            <td className="px-6 py-4 font-bold text-on-surface">₹{log.amount.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm text-on-surface-variant">{new Date(log.date).toLocaleDateString()}</td>
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                onClick={async () => {
+                                  if (!confirm('Delete this expenditure?')) return;
+                                  try {
+                                    await deleteExpenditureLog(event.id, log.id);
+                                    toast.success('Deleted expenditure');
+                                    const updatedLogs = event.needs!.funds!.expenditureLogs!.filter(l => l.id !== log.id);
+                                    setEvent({
+                                      ...event,
+                                      needs: {
+                                        ...event.needs,
+                                        funds: {
+                                          ...event.needs?.funds,
+                                          current: event.needs?.funds?.current || 0,
+                                          goal: event.needs?.funds?.goal || 0,
+                                          expended: updatedLogs.reduce((s, l) => s + l.amount, 0),
+                                          expenditureLogs: updatedLogs
+                                        }
+                                      }
+                                    });
+                                  } catch (e) {
+                                    toast.error('Failed to delete');
+                                    console.error(e);
+                                  }
+                                }}
+                                className="p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
-      
-      <PromotionModal 
+
+      <PromotionModal
         isOpen={isPromotionModalOpen}
         onClose={() => setIsPromotionModalOpen(false)}
         campaignId={eventId}
