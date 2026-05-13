@@ -6,8 +6,8 @@ import { ArrowLeft, Users, Globe, Shield, Code, Briefcase, HeartHandshake, Spark
 const TEAM_MEMBERS = [
   {
     name: 'Swagata Ganguly',
-    role: 'Full Stack Web and MLOps Engineer',
-    summary: 'Leads backend architecture, managing databases, APIs, and map integrations to ensure scalable AI powered features for reliable system performance.',
+    role: 'Full Stack Web3 and MLOps Engineer',
+    summary: 'Leads backend architecture and Web3 integration, managing databases, APIs, and smart contracts to ensure scalable AI powered features for reliable system performance.',
     linkedin: 'https://www.linkedin.com/in/swagata-ganguly-453aa6327',
     github: 'https://github.com/Cyberclutch146',
     gradient: 'linear-gradient(135deg, rgba(194,113,91,0.18), rgba(231,162,144,0.08))',
@@ -15,30 +15,12 @@ const TEAM_MEMBERS = [
   },
   {
     name: 'Anuvab Das',
-    role: 'Full Stack App/Web Developer',
-    summary: 'Drives UI/UX design, implements payment system integration, and refines backend logic for seamless user experience and performance.',
+    role: 'Full Stack Developer, AI Specialist & Security Engineer',
+    summary: 'Drives UI/UX design, implements payment systems, and specializes in AI integration, model fine-tuning, and robust database security features for a seamless and protected user experience.',
     linkedin: 'https://www.linkedin.com/in/anv-dev/',
     github: 'https://github.com/Stewy8506',
     gradient: 'linear-gradient(135deg, rgba(59,107,74,0.18), rgba(96,160,118,0.08))',
     accentColor: 'var(--color-primary-base)',
-  },
-  {
-    name: 'Debadree Sekhar Das',
-    role: 'AI Specialist & Integration',
-    summary: 'Develops and integrates AI-driven features, powering intelligent search, content generation, and contextual automation across the platform.',
-    linkedin: 'https://www.linkedin.com/in/swagata-ganguly-453aa6327',
-    github: 'https://github.com/Cyberclutch146',
-    gradient: 'linear-gradient(135deg, rgba(212,168,82,0.18), rgba(139,109,46,0.08))',
-    accentColor: 'var(--color-warm-amber)',
-  },
-  {
-    name: 'Dhritiman Siva',
-    role: 'Backend Developer',
-    summary: 'Builds and maintains core backend services including authentication, messaging systems, email workflows, and server-side operations.',
-    linkedin: 'https://www.linkedin.com/in/dhritiman-siva-8501b9324/',
-    github: 'https://github.com/Dhritiman-Siva',
-    gradient: 'linear-gradient(135deg, rgba(127,164,146,0.2), rgba(93,135,118,0.08))',
-    accentColor: 'var(--color-sage)',
   }
 ]
 
@@ -274,7 +256,7 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-5xl">
           {TEAM_MEMBERS.map((member, index) => (
             <TeamMemberCard key={member.name} member={member} index={index} />
           ))}
