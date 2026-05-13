@@ -207,7 +207,8 @@ IMPORTANT CONTEXT: A verification code was sent to the user's email for the even
           );
 
           // Store the action data for the client
-          if (actionResult.action) {
+          // Don't overwrite a terminal action (like signed_up) with subsequent calls
+          if (actionResult.action && actionData?.type !== 'signed_up') {
             actionData = actionResult.action;
           }
 

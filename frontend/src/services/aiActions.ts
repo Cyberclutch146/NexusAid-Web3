@@ -421,7 +421,25 @@ export async function handleConfirmSignup(
     }
 
     const ticketId = Math.random().toString(36).substring(2, 12).toUpperCase();
-    await addVolunteerSignupServer(resolvedId, userId, userName, userEmail, ticketId);
+
+    try {
+      await addVolunteerSignupServer(resolvedId, userId, userName, userEmail, ticketId);
+    } catch (signupError: any) {
+      // If the user is already registered, treat it as a success
+      if (signupError.message?.includes('Already registered')) {
+        return {
+          success: true,
+          message: `You're already registered as a volunteer for **${resolvedTitle}**! No need to sign up again. You can view the event for more details.`,
+          action: {
+            type: "signed_up",
+            url: `/event/${resolvedId}`,
+            eventId: resolvedId,
+            eventTitle: resolvedTitle,
+          },
+        };
+      }
+      throw signupError; // re-throw other errors
+    }
 
     // Send confirmation email (non-blocking)
     fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/confirm-registration`, {
