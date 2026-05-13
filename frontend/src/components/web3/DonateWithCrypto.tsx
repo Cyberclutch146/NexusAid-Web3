@@ -3,18 +3,23 @@
 
 import { useState } from 'react';
 import { useWallet } from '@/hooks/useWallet';
-import { getContract, parseEther, formatEther } from '@/lib/web3/contract';
+import { useAuth } from '@/context/AuthContext';
+import { getContract, parseEther } from '@/lib/web3/contract';
 
 interface Props {
   campaignId: number;
+  eventId?: string;
+  eventTitle?: string;
   onSuccess?: () => void;
 }
 
-export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
+export function DonateWithCrypto({ campaignId, eventId, eventTitle, onSuccess }: Props) {
   const { address, signer, connecting, connect, disconnect } = useWallet();
+  const { user, profile } = useAuth();
   const [amount, setAmount] = useState('0.01');
   const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
 
   const handleDonate = async () => {
     if (!signer || !amount || parseFloat(amount) <= 0) return;
@@ -25,7 +30,7 @@ export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
       const network = await signer.provider.getNetwork();
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const expectedChainId = BigInt(isLocal ? 31337 : 80002);
-      
+
       if (network.chainId !== expectedChainId) {
         // Automatically request network switch
         try {
@@ -46,6 +51,34 @@ export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
       });
       setTxHash(tx.hash);
       await tx.wait();
+
+      // Record donation to Firestore and send receipt email
+      if (user && eventId) {
+        try {
+          const network = await signer.provider.getNetwork();
+          const verifyRes = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              method: 'crypto',
+              txHash: tx.hash,
+              walletAddress: address,
+              amount,
+              chainId: Number(network.chainId),
+              eventId,
+              eventTitle: eventTitle || 'NexusAid Campaign',
+              userId: user.uid,
+              userName: profile?.displayName || user.displayName || 'Anonymous',
+              userEmail: user.email || '',
+            }),
+          });
+          const result = await verifyRes.json();
+          if (result.receiptId) setReceiptId(result.receiptId);
+        } catch (e) {
+          console.error('Non-critical: failed to record donation to Firestore', e);
+        }
+      }
+
       setStatus('success');
       onSuccess?.();
     } catch (err: any) {
@@ -139,6 +172,11 @@ export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
               tx: {txHash.slice(0, 10)}...{txHash.slice(-8)}
             </p>
           )}
+          {receiptId && (
+            <p className="text-xs opacity-80 font-mono tracking-wider">
+              Receipt: {receiptId}
+            </p>
+          )}
           <a
             href={`https://x.com/intent/tweet?text=${encodeURIComponent(`I just donated MATIC to a disaster relief campaign on @NexusAid! 🛡️ Track my on-chain impact here: https://amoy.polygonscan.com/tx/${txHash}`)}`}
             target="_blank"
@@ -161,11 +199,10 @@ export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
                 <button
                   key={preset}
                   onClick={() => setAmount(preset)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    amount === preset
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${amount === preset
                       ? 'bg-primary text-on-primary shadow-sm'
                       : 'bg-surface-variant/50 text-on-surface-variant hover:bg-surface-variant'
-                  }`}
+                    }`}
                 >
                   {preset}
                 </button>

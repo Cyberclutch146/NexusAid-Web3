@@ -3,7 +3,7 @@
 import { EventNeeds } from '@/types';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { updateDonation, addVolunteerSignup, getUserPledge } from '@/services/eventService';
+import { addVolunteerSignup, getUserPledge } from '@/services/eventService';
 import { toast } from 'sonner';
 import { VolunteerModal } from './VolunteerModal';
 import { GoodsPledgeModal } from './GoodsPledgeModal';
@@ -107,15 +107,32 @@ export function DonationPanel({
           email: user.email || '',
         },
         handler: async (paymentResponse: any) => {
-          // Payment successful - update donation in database
+          // Verify payment server-side and record donation
           try {
-            await updateDonation(eventId, donationAmount);
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                method: 'razorpay',
+                razorpayPaymentId: paymentResponse.razorpay_payment_id,
+                razorpayOrderId: paymentResponse.razorpay_order_id,
+                razorpaySignature: paymentResponse.razorpay_signature,
+                amount: donationAmount,
+                eventId,
+                eventTitle,
+                userId: user!.uid,
+                userName: profile?.displayName || user!.displayName || 'Anonymous',
+                userEmail: user!.email || '',
+              }),
+            });
+            const result = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(result.error || 'Verification failed');
             setPledged(true);
-            toast.success(`Thank you for your ₹${donationAmount} donation!`);
+            toast.success(`Thank you! Receipt: ${result.receiptId}`);
             onActionComplete?.();
           } catch (err) {
-            console.error('Error updating donation:', err);
-            toast.error('Payment successful but failed to update. Contact support.');
+            console.error('Error recording donation:', err);
+            toast.error('Payment received but receipt failed. Contact support with your payment ID.');
           }
         },
         modal: {
@@ -231,6 +248,8 @@ export function DonationPanel({
             {/* ─── Web3 Crypto Donation ─── */}
             <DonateWithCrypto
               campaignId={onChainCampaignId ?? 0}
+              eventId={eventId}
+              eventTitle={eventTitle}
               onSuccess={onActionComplete}
             />
 

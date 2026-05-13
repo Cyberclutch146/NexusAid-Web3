@@ -8,6 +8,7 @@ import { uploadImage } from '@/services/storageService';
 import { toast } from 'sonner';
 import { getUserAvatar, DEFAULT_AVATAR } from '@/utils/avatar';
 import { getRegisteredEvents } from '@/services/eventService';
+import { getUserDonations, DonationRecord } from '@/services/donationService';
 import { useWallet } from '@/hooks/useWallet';
 import { BadgeDisplay } from '@/components/web3/BadgeDisplay';
 import { RollingCounter } from '@/components/ui/RollingCounter';
@@ -21,6 +22,8 @@ export default function ProfilePage() {
   const [volunteerHours, setVolunteerHours] = useState(0);
   const [tipAmount, setTipAmount] = useState('0.01');
   const [isTipping, setIsTipping] = useState(false);
+  const [donationHistory, setDonationHistory] = useState<DonationRecord[]>([]);
+  const [loadingDonations, setLoadingDonations] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -66,6 +69,16 @@ export default function ProfilePage() {
       }
     };
     fetchHours();
+  }, [user]);
+
+  // Fetch donation history
+  useEffect(() => {
+    if (!user) return;
+    setLoadingDonations(true);
+    getUserDonations(user.uid)
+      .then(setDonationHistory)
+      .catch((e) => console.error('Failed to fetch donations:', e))
+      .finally(() => setLoadingDonations(false));
   }, [user]);
 
   // Fetch wallet balance
@@ -835,6 +848,90 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+      </section>
+
+      {/* ─── Donation History ─── */}
+      <section className="animate-fade-in-up delay-400">
+        <h2 className="font-headline text-2xl font-bold text-on-surface mb-6 flex items-center gap-2">
+          <span className="material-symbols-outlined" style={{ color: 'var(--color-primary-base)' }}>receipt_long</span>
+          Donation History
+        </h2>
+
+        {loadingDonations ? (
+          <div className="premium-glass rounded-[24px] p-8 flex items-center justify-center gap-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
+            <span className="text-on-surface-variant text-sm">Loading history...</span>
+          </div>
+        ) : donationHistory.length === 0 ? (
+          <div className="premium-glass rounded-[24px] p-10 flex flex-col items-center text-center">
+            <span className="material-symbols-outlined text-[48px] text-on-surface-variant/20 mb-3">volunteer_activism</span>
+            <p className="text-sm font-medium text-on-surface-variant">No donations recorded yet.</p>
+            <p className="text-xs text-on-surface-variant/60 mt-1">Your fiat and crypto donations will appear here after you donate.</p>
+          </div>
+        ) : (
+          <div className="premium-glass rounded-[24px] overflow-hidden">
+            {/* Header Row */}
+            <div className="grid grid-cols-12 gap-2 px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant border-b border-outline-variant/20">
+              <div className="col-span-2">Method</div>
+              <div className="col-span-4">Campaign</div>
+              <div className="col-span-2 text-right">Amount</div>
+              <div className="col-span-2">Receipt</div>
+              <div className="col-span-2 text-right">Date</div>
+            </div>
+
+            {donationHistory.map((don, idx) => {
+              const isRazorpay = don.method === 'razorpay';
+              const amountLabel = isRazorpay
+                ? `₹${don.amount.toLocaleString('en-IN')}`
+                : `${don.amount} ${don.currency}`;
+              const dateLabel = don.createdAt
+                ? new Date((don.createdAt as any).toDate?.() ?? don.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                : '—';
+
+              return (
+                <div
+                  key={don.id ?? idx}
+                  className="grid grid-cols-12 gap-2 px-5 py-4 items-center text-sm border-b border-outline-variant/10 last:border-0 hover:bg-surface-variant/20 transition-colors"
+                >
+                  {/* Method */}
+                  <div className="col-span-2">
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full"
+                      style={isRazorpay
+                        ? { background: 'rgba(59,107,74,0.1)', color: 'var(--color-primary-base)' }
+                        : { background: 'rgba(130,71,229,0.1)', color: '#8247e5' }
+                      }
+                    >
+                      {isRazorpay ? '₹ Fiat' : '⬡ Crypto'}
+                    </span>
+                  </div>
+
+                  {/* Campaign */}
+                  <div className="col-span-4 font-medium text-on-surface truncate text-xs">
+                    {don.eventTitle}
+                  </div>
+
+                  {/* Amount */}
+                  <div className="col-span-2 text-right font-bold text-on-surface">
+                    {amountLabel}
+                  </div>
+
+                  {/* Receipt */}
+                  <div className="col-span-2">
+                    <span className="font-mono text-[10px] text-on-surface-variant bg-surface-variant/40 px-1.5 py-0.5 rounded">
+                      {don.receiptId}
+                    </span>
+                  </div>
+
+                  {/* Date */}
+                  <div className="col-span-2 text-right text-xs text-on-surface-variant">
+                    {dateLabel}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );
