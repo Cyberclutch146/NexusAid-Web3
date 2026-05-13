@@ -24,7 +24,7 @@ export function DonateWithCrypto({ campaignId, onSuccess }: Props) {
       // 1. Verify network before attempting anything
       const network = await signer.provider.getNetwork();
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const expectedChainId = isLocal ? 31337n : 80002n;
+      const expectedChainId = BigInt(isLocal ? 31337 : 80002);
       
       if (network.chainId !== expectedChainId) {
         // Automatically request network switch

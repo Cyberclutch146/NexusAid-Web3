@@ -591,27 +591,44 @@ export default function NavbarTop() {
                       </div>
                     </button>
 
-                    <button
-                      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                      className="col-span-2 rounded-[20px] px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5"
+                    <div
+                      className="col-span-2 rounded-[20px] px-4 py-3"
                       style={{
                         background: 'color-mix(in srgb, var(--color-primary-base) 10%, var(--color-surface-container-high-base) 90%)',
                         border: '1px solid color-mix(in srgb, var(--color-primary-base) 18%, var(--glass-border) 82%)',
                       }}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold text-on-surface">Theme</span>
                         <div
-                          className="flex h-9 w-9 items-center justify-center rounded-xl"
-                          style={{ background: 'color-mix(in srgb, var(--color-surface-bright-base) 82%, transparent)', border: '1px solid var(--glass-border)' }}
+                          className="relative grid w-36 grid-cols-2 rounded-full p-1"
+                          style={{ background: 'color-mix(in srgb, var(--color-surface-bright-base) 76%, transparent)', border: '1px solid var(--glass-border)' }}
                         >
-                          {mounted && resolvedTheme === 'dark' ? <Sun size={17} className="text-on-surface-variant" /> : <Moon size={17} className="text-on-surface-variant" />}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-on-surface">{mounted && resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</p>
-                          <p className="text-[11px] text-on-surface-variant">Switch the vibe instantly</p>
+                          <motion.span
+                            className="absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-full"
+                            animate={{ x: mounted && resolvedTheme === 'dark' ? 'calc(100% + 0.25rem)' : 0 }}
+                            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                            style={{ left: '0.25rem', background: 'linear-gradient(135deg, var(--color-primary-base), var(--color-moss))', boxShadow: '0 2px 8px rgba(59,107,74,0.22)' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setTheme('light')}
+                            className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-[11px] font-bold transition-colors ${mounted && resolvedTheme !== 'dark' ? 'text-on-primary' : 'text-on-surface-variant'}`}
+                          >
+                            <Sun size={13} />
+                            Light
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTheme('dark')}
+                            className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-[11px] font-bold transition-colors ${mounted && resolvedTheme === 'dark' ? 'text-on-primary' : 'text-on-surface-variant'}`}
+                          >
+                            <Moon size={13} />
+                            Dark
+                          </button>
                         </div>
                       </div>
-                    </button>
+                    </div>
 
                     <button
                       onClick={() => { setProfileMenuOpen(false); router.push('/profile'); }}

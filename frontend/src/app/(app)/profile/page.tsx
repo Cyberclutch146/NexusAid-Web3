@@ -87,6 +87,11 @@ export default function ProfilePage() {
 
   // Quick tip/donate to the NexusDonate contract
   const handleQuickTip = async () => {
+    if (!user) {
+      toast.error('Please sign in to send a donation');
+      return;
+    }
+
     if (!signer || !address) {
       toast.error('Connect your wallet first');
       return;
@@ -834,4 +839,3 @@ export default function ProfilePage() {
     </main>
   );
 }
-

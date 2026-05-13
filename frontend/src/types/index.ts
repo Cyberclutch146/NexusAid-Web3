@@ -21,6 +21,7 @@ export interface UserProfile {
   updatedAt: Timestamp | null;
   // ─── Web3 / Wallet Identity ────────────────────────────────
   walletAddress?: string;          // Linked MetaMask address (EIP-191 verified)
+  badgeCount?: number;
   badges?: {
     tokenId: number;
     badgeType: string;
