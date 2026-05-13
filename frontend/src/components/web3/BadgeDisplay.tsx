@@ -3,7 +3,7 @@
 // Renders a user's on-chain Soulbound Token (SBT) badge collection.
 // Shows tier badges in a glassmorphism card layout with hover effects.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getReadOnlyReputationContract, BADGE_TIERS, BadgeTierConfig } from '@/lib/web3/reputationContract';
 
 interface Badge {

@@ -29,12 +29,13 @@ If you discover a security vulnerability, please report it responsibly:
 - Client-side Firestore writes to donation collections are blocked by security rules
 - Razorpay payments are verified server-side using HMAC-SHA256 signature verification
 - EIP-191 wallet linking verifies cryptographic signatures before storing wallet addresses
+- **Sentinel API Protection:** The `/api/sentinel` route implements a Stale-While-Revalidate caching strategy with a 5-minute TTL. This prevents DDoS attacks on our backend and protects upstream 3rd-party disaster APIs from rate-limit bans during high-traffic emergency events.
 
-### Firestore Security Rules
+### Firestore Security Rules & Workflows
 
 - Donation subcollections (`events/{id}/donations`, `users/{uid}/donations`) are **write-once** and **admin-only write**
 - User documents are accessible only by the document owner
-- Pending donations can be created by authenticated users but cannot be deleted
+- **Mandatory Admin Verification:** Offline/Cash donations submitted by users are strictly held in a `pending` state. They cannot bypass the approval workflow and do not update the financial ledger until an authenticated admin approves them via the `/api/approve-donation` route.
 
 ### Environment Security
 
@@ -42,6 +43,12 @@ If you discover a security vulnerability, please report it responsibly:
 - Service account credentials (`serviceAccountKey.json`) are gitignored
 - All `NEXT_PUBLIC_*` variables are safe for client-side exposure
 - Non-public variables are only accessible in server-side API routes
+
+### Reputation & Trust Model
+
+NexusAid employs a hybrid reputation model to balance UX with security:
+- **Earned Badges (Off-chain):** Granted automatically based on donation totals (e.g., $100 = Bronze). These are cosmetic and tied to the Firebase user profile.
+- **Soulbound Tokens (On-chain):** To achieve immutable, verifiable reputation, off-chain badges must be claimed on-chain. This requires cryptographic proof of wallet ownership (EIP-191) and an admin-triggered mint transaction. The smart contract blocks badge transfers to prevent reputation farming or selling.
 
 ---
 
