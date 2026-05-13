@@ -79,6 +79,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${literata.variable} ${nunitoSans.variable} ${elmsSans.variable} scroll-smooth`} suppressHydrationWarning>
       <head>
+        {/* Preload gives the browser an early fetch hint for the icon font */}
+        <link
+          rel="preload"
+          as="style"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL,GRAD,opsz@100..700,0..1,0..1,20..48&display=swap"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL,GRAD,opsz@100..700,0..1,0..1,20..48&display=swap"
           rel="stylesheet"

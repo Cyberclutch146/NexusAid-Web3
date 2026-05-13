@@ -53,32 +53,23 @@ export default function ProfilePage() {
     }
   }, [profile, isEditing]);
 
-  // Fetch real-time volunteer hours from registrations
-  useEffect(() => {
-    if (!user) return;
-    const fetchHours = async () => {
-      try {
-        const events = await getRegisteredEvents(user.uid);
-        // Mock: each event attended is 5 hours
-        const realHours = events.length * 5;
-        if (realHours > volunteerHours) {
-          setVolunteerHours(realHours);
-        }
-      } catch (err) {
-        console.error("Failed to fetch volunteer hours:", err);
-      }
-    };
-    fetchHours();
-  }, [user]);
-
-  // Fetch donation history
+  // Fetch volunteer hours + donation history in parallel (was two separate waterfalls)
   useEffect(() => {
     if (!user) return;
     setLoadingDonations(true);
-    getUserDonations(user.uid)
-      .then(setDonationHistory)
-      .catch((e) => console.error('Failed to fetch donations:', e))
+    Promise.all([
+      getRegisteredEvents(user.uid),
+      getUserDonations(user.uid),
+    ])
+      .then(([events, donations]) => {
+        // Mock: each event attended is 5 hours
+        const realHours = events.length * 5;
+        if (realHours > volunteerHours) setVolunteerHours(realHours);
+        setDonationHistory(donations);
+      })
+      .catch(err => console.error('Failed to fetch profile data:', err))
       .finally(() => setLoadingDonations(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Fetch wallet balance

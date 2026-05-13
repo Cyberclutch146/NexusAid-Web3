@@ -68,17 +68,19 @@ export function MilestoneTracker({
       setTotalRaised(formatEther(raised as bigint));
 
       const count = Number(milestoneCount);
-      const results: Milestone[] = [];
-      for (let i = 0; i < count; i++) {
-        // ABI: description, evidenceCID, status, releasedAmount
-        const [description, evidenceCID, status, releasedAmount] = await contract.getMilestone(escrowCampaignId, i);
-        results.push({
-          description: description as string,
-          evidenceCID: evidenceCID as string,
-          status: Number(status),
-          releasedAmount: formatEther(releasedAmount as bigint),
-        });
-      }
+      // Fetch all milestones in parallel instead of sequentially
+      const results: Milestone[] = await Promise.all(
+        Array.from({ length: count }, (_, i) =>
+          contract.getMilestone(escrowCampaignId, i).then(
+            ([description, evidenceCID, status, releasedAmount]: [string, string, bigint, bigint]) => ({
+              description: description as string,
+              evidenceCID: evidenceCID as string,
+              status: Number(status),
+              releasedAmount: formatEther(releasedAmount as bigint),
+            })
+          )
+        )
+      );
       setMilestones(results);
     } catch (err) {
       console.error('MilestoneTracker load error:', err);

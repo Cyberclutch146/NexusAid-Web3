@@ -14,6 +14,7 @@
 const { formatEther } = require('ethers');
 const { admin, db } = require('../config/firebase');
 const { donateContract } = require('../config/contracts');
+const { getUserIdByWallet } = require('../utils/userCache');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -72,21 +73,18 @@ donateContract.on('DonationMade', async (campaignId, donor, amount, eventObj) =>
     await batch.commit();
     console.log(`   ✅ Donation doc created: ${donationRef.id}`);
 
-    // 3. Update the donor's user profile (totalDonated) so badge eligibility works
+    // 3. Update the donor's user profile (totalDonated) so badge eligibility works.
+    //    Use in-memory cache to avoid repeated Firestore queries for the same wallet.
     try {
-      const usersSnap = await db.collection('users')
-        .where('walletAddress', '==', donorAddr)
-        .limit(1)
-        .get();
+      const userId = await getUserIdByWallet(donorAddr, db);
 
-      if (!usersSnap.empty) {
-        // User found — increment their totalDonated
-        const userRef = usersSnap.docs[0].ref;
+      if (userId) {
+        const userRef = db.collection('users').doc(userId);
         await userRef.update({
           totalDonated:  admin.firestore.FieldValue.increment(ethAmount),
           lastDonatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        console.log(`   ✅ Updated totalDonated for user ${usersSnap.docs[0].id} (+${ethAmount} ETH)`);
+        console.log(`   ✅ Updated totalDonated for user ${userId} (+${ethAmount} ETH)`);
       } else {
         // No Firebase user linked to this wallet yet — create a stub so totalDonated is tracked
         const stubRef = db.collection('users').doc(`wallet_${donorAddr}`);

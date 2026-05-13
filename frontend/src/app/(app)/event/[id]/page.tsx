@@ -3,7 +3,6 @@ import { useRouter } from 'next/navigation';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { DonationPanel } from '@/components/events/DonationPanel';
 import { ChatBox } from '@/components/ai/ChatBox';
-import { VolunteerLeaderboard } from '@/components/events/VolunteerLeaderboard';
 import { MilestoneTracker } from '@/components/web3/MilestoneTracker';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -413,10 +412,7 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
           )}
 
           <div className="mt-10 animate-fade-in-up delay-300">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <ChatBox eventId={event.id} />
-              <VolunteerLeaderboard eventId={event.id} />
-            </div>
+            <ChatBox eventId={event.id} />
           </div>
         </div>
 

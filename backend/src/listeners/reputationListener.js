@@ -12,6 +12,7 @@
 
 const { admin, db } = require('../config/firebase');
 const { reputationContract } = require('../config/contracts');
+const { getUserIdByWallet } = require('../utils/userCache');
 
 // ─── BadgeMinted ─────────────────────────────────────────────────────────────
 reputationContract.on('BadgeMinted', async (recipient, tokenId, badgeType, timestamp, eventObj) => {
@@ -39,18 +40,13 @@ reputationContract.on('BadgeMinted', async (recipient, tokenId, badgeType, times
       source:          'blockchain',
     });
 
-    // 2. Try to find the Firebase user by their connected wallet address
-    //    Users store their wallet in profile.walletAddress (lowercase)
+    // 2. Look up the Firebase user by wallet — use in-memory cache to avoid
+    //    repeated Firestore queries for the same wallet address.
     try {
-      const userSnap = await db
-        .collection('users')
-        .where('walletAddress', '==', recipientLC)
-        .limit(1)
-        .get();
+      const userId = await getUserIdByWallet(recipientLC, db);
 
-      if (!userSnap.empty) {
-        const userId    = userSnap.docs[0].id;
-        const badgeRef  = db
+      if (userId) {
+        const badgeRef = db
           .collection('users').doc(userId)
           .collection('badges').doc(tokenIdStr);
 

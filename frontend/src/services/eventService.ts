@@ -321,21 +321,27 @@ export const getRegisteredEvents = async (userId: string): Promise<CommunityEven
   const registrationsRef = collection(db, `users/${userId}/registrations`);
   const snapshot = await getDocs(registrationsRef);
   const eventIds = snapshot.docs.map(doc => doc.id);
-  
+
   if (eventIds.length === 0) return [];
-  
-  // Fetch in batches of 30 (Firestore 'in' query limit)
-  const events: CommunityEvent[] = [];
+
+  // Build all chunks first, then fetch all in parallel (Firestore 'in' limit = 30)
+  const chunks: string[][] = [];
   for (let i = 0; i < eventIds.length; i += 30) {
-    const chunk = eventIds.slice(i, i + 30);
-    const eventsRef = collection(db, EVENTS_COLLECTION);
-    const q = query(eventsRef, where(documentId(), 'in', chunk));
-    const eventsSnapshot = await getDocs(q);
-    eventsSnapshot.docs.forEach(doc => {
-      events.push({ id: doc.id, ...doc.data() } as CommunityEvent);
-    });
+    chunks.push(eventIds.slice(i, i + 30));
   }
-  
+
+  const snapshots = await Promise.all(
+    chunks.map(chunk => {
+      const q = query(collection(db, EVENTS_COLLECTION), where(documentId(), 'in', chunk));
+      return getDocs(q);
+    })
+  );
+
+  const events: CommunityEvent[] = [];
+  snapshots.forEach(snap => {
+    snap.docs.forEach(doc => events.push({ id: doc.id, ...doc.data() } as CommunityEvent));
+  });
+
   return events;
 };
 

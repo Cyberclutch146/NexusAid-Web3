@@ -60,18 +60,20 @@ export function CampaignStats({ campaignId }: Props) {
         setTotalRaised(formatEther(raised));
 
         const count = Number(await contract.getDonationCount(campaignId));
-        const records: Donation[] = [];
 
-        // Read last 10 donations max to avoid UI overload
+        // Read last 10 donations max to avoid UI overload, fetched in parallel
         const start = Math.max(0, count - 10);
-        for (let i = start; i < count; i++) {
-          const [donor, amount, timestamp] = await contract.getDonation(campaignId, i);
-          records.push({
-            donor: donor as string,
-            amount: formatEther(amount as bigint),
-            timestamp: Number(timestamp),
-          });
-        }
+        const records: Donation[] = await Promise.all(
+          Array.from({ length: count - start }, (_, idx) =>
+            contract.getDonation(campaignId, start + idx).then(
+              ([donor, amount, timestamp]: [string, bigint, bigint]) => ({
+                donor: donor as string,
+                amount: formatEther(amount as bigint),
+                timestamp: Number(timestamp),
+              })
+            )
+          )
+        );
 
         if (!cancelled) {
           setDonations(records.reverse()); // newest first
