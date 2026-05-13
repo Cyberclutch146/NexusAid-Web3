@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { SentinelAlert } from '@/types/sentinel';
 import SentinelAlertFeed from '@/components/map/SentinelAlertFeed';
-import { Activity, Map as MapIcon, Loader2, ShieldAlert, Radio, TriangleAlert, Waves, RefreshCw } from 'lucide-react';
+import { Activity, Map as MapIcon, Loader2, ShieldAlert, Radio, TriangleAlert, Waves, RefreshCw, AlertCircle } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
@@ -26,61 +26,83 @@ const SENTINEL_CACHE_KEY = 'nexusaid:sentinel:last-known-alerts';
 const SENTINEL_CACHE_TIME_KEY = 'nexusaid:sentinel:last-known-alerts-time';
 const SENTINEL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
+// Auto-fit map bounds to alerts
+const FitBoundsHelper = dynamic(
+  () => import('@/components/map/FitBoundsHelper'),
+  { ssr: false }
+);
+
 export default function SentinelDashboardPage() {
   const [alerts, setAlerts] = useState<SentinelAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'map' | 'feed'>('map');
   const { resolvedTheme } = useTheme();
 
   const fetchAlerts = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/sentinel', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setAlerts(data);
-          window.localStorage.setItem(SENTINEL_CACHE_KEY, JSON.stringify(data));
-          window.localStorage.setItem(SENTINEL_CACHE_TIME_KEY, new Date().toISOString());
-        }
-        setLastRefresh(new Date());
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
       }
-    } catch (error) {
-      console.error("Failed to fetch Sentinel data", error);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setAlerts(data);
+        window.localStorage.setItem(SENTINEL_CACHE_KEY, JSON.stringify(data));
+        window.localStorage.setItem(SENTINEL_CACHE_TIME_KEY, new Date().toISOString());
+      } else if (data.error) {
+        throw new Error(data.error);
+      }
+      setLastRefresh(new Date());
+    } catch (err: any) {
+      console.error("Failed to fetch Sentinel data", err);
+      setError(err.message || 'Failed to connect to Sentinel feeds');
+      // If we have no alerts at all, try to load from cache
+      if (alerts.length === 0) {
+        try {
+          const cachedAlerts = window.localStorage.getItem(SENTINEL_CACHE_KEY);
+          if (cachedAlerts) {
+            const parsed = JSON.parse(cachedAlerts);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setAlerts(parsed);
+              setError('Using cached data — live feeds temporarily unavailable');
+            }
+          }
+        } catch { /* ignore parse errors */ }
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [alerts.length]);
 
   useEffect(() => {
-    const cachedLoad = window.setTimeout(() => {
+    // Load from cache first for instant display
+    try {
       const cachedAlerts = window.localStorage.getItem(SENTINEL_CACHE_KEY);
       const cachedAt = window.localStorage.getItem(SENTINEL_CACHE_TIME_KEY);
-
-      if (!cachedAlerts) return;
-
-      try {
-        const parsedAlerts = JSON.parse(cachedAlerts);
-        if (Array.isArray(parsedAlerts)) {
-          setAlerts(parsedAlerts);
+      if (cachedAlerts) {
+        const parsed = JSON.parse(cachedAlerts);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAlerts(parsed);
           setLastRefresh(cachedAt ? new Date(cachedAt) : null);
         }
-      } catch {
-        window.localStorage.removeItem(SENTINEL_CACHE_KEY);
-        window.localStorage.removeItem(SENTINEL_CACHE_TIME_KEY);
       }
-    }, 0);
-    const initialFetch = window.setTimeout(fetchAlerts, 0);
-    
+    } catch {
+      window.localStorage.removeItem(SENTINEL_CACHE_KEY);
+      window.localStorage.removeItem(SENTINEL_CACHE_TIME_KEY);
+    }
+
+    // Fetch fresh data
+    fetchAlerts();
+
     // Poll every 5 minutes
     const interval = setInterval(fetchAlerts, SENTINEL_REFRESH_INTERVAL_MS);
-    return () => {
-      window.clearTimeout(cachedLoad);
-      window.clearTimeout(initialFetch);
-      clearInterval(interval);
-    };
-  }, [fetchAlerts]);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const tileUrl = resolvedTheme === 'dark' 
     ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -88,15 +110,21 @@ export default function SentinelDashboardPage() {
 
   const metrics = useMemo(() => {
     const total = alerts.length;
-    const critical = alerts.filter((alert) => alert.severity === 'Extreme' || alert.severity === 'Severe').length;
-    const weather = alerts.filter((alert) => alert.type === 'WEATHER').length;
+    const critical = alerts.filter((a) => a.severity === 'Extreme' || a.severity === 'Severe').length;
+    const weather = alerts.filter((a) => a.type === 'WEATHER').length;
+    const seismic = alerts.filter((a) => a.type === 'SEISMIC').length;
+
+    // Count unique sources
+    const sources = new Set(alerts.map(a => a.source.split(' ')[0]));
 
     return {
       total,
       critical,
       weather,
+      seismic,
+      sourceCount: sources.size,
       latestUpdate: lastRefresh
-        ? lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        ? formatRelativeTime(lastRefresh)
         : 'Waiting',
     };
   }, [alerts, lastRefresh]);
@@ -148,15 +176,19 @@ export default function SentinelDashboardPage() {
                 <TriangleAlert className="h-3.5 w-3.5" style={{ color: 'var(--color-terracotta)' }} />
                 Field-ready alerts
               </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+                <Activity className="h-3.5 w-3.5" style={{ color: 'var(--color-primary-base)' }} />
+                {metrics.sourceCount} active sources
+              </span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 md:gap-4">
             {[
-              { label: 'Active Alerts', value: loading ? '...' : metrics.total.toString(), tone: 'rgba(59,107,74,0.12)', color: 'var(--color-primary-base)' },
-              { label: 'Critical Signals', value: loading ? '...' : metrics.critical.toString(), tone: 'rgba(194,113,91,0.12)', color: 'var(--color-terracotta)' },
-              { label: 'Weather Events', value: loading ? '...' : metrics.weather.toString(), tone: 'rgba(212,168,82,0.12)', color: 'var(--color-warm-amber)' },
-              { label: 'Latest Refresh', value: metrics.latestUpdate, tone: 'rgba(255,255,255,0.55)', color: 'var(--color-on-surface-base)' },
+              { label: 'Active Alerts', value: loading && alerts.length === 0 ? '...' : metrics.total.toString(), tone: 'rgba(59,107,74,0.12)', color: 'var(--color-primary-base)' },
+              { label: 'Critical Signals', value: loading && alerts.length === 0 ? '...' : metrics.critical.toString(), tone: 'rgba(194,113,91,0.12)', color: 'var(--color-terracotta)' },
+              { label: 'Seismic Events', value: loading && alerts.length === 0 ? '...' : metrics.seismic.toString(), tone: 'rgba(239,68,68,0.12)', color: '#ef4444' },
+              { label: 'Last Synced', value: metrics.latestUpdate, tone: 'rgba(255,255,255,0.55)', color: 'var(--color-on-surface-base)' },
             ].map((metric) => (
               <div
                 key={metric.label}
@@ -175,6 +207,28 @@ export default function SentinelDashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Error Banner */}
+      {error && (
+        <div
+          className="shrink-0 flex items-center gap-3 rounded-2xl px-5 py-3 text-sm font-medium animate-fade-in-up"
+          style={{
+            background: 'rgba(194,113,91,0.08)',
+            border: '1px solid rgba(194,113,91,0.2)',
+            color: 'var(--color-terracotta)',
+          }}
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={fetchAlerts}
+            className="shrink-0 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors"
+            style={{ background: 'rgba(194,113,91,0.12)' }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="shrink-0 flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-fade-in-up delay-100">
         <div
@@ -248,30 +302,32 @@ export default function SentinelDashboardPage() {
           <div className="flex-1 rounded-[24px] overflow-hidden z-0 shadow-inner h-full w-full relative" style={{ background: 'var(--color-surface-dim-base)', border: '1px solid var(--glass-border)' }}>
             <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex items-center justify-between p-4">
               <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">National view</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">Global view</p>
                 <p className="mt-1 text-sm font-semibold text-on-surface">Pan and zoom through active sentinel zones</p>
               </div>
               <div className="hidden md:flex rounded-2xl px-4 py-3 text-sm font-semibold text-on-surface" style={{ background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
-                {loading ? 'Syncing live layers...' : `${metrics.total} alerts on map`}
+                {loading && alerts.length === 0 ? 'Syncing live layers...' : `${metrics.total} alerts on map`}
               </div>
             </div>
             <MapContainer
-                center={[39.8283, -98.5795]} 
-                zoom={4} 
+                center={[20.5937, 78.9629]}
+                zoom={3}
                 style={{ height: '100%', width: '100%', zIndex: 0 }}
+                maxBoundsViscosity={1.0}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url={tileUrl}
               />
               <SentinelMapOverlay alerts={alerts} />
+              <FitBoundsHelper alerts={alerts} />
             </MapContainer>
           </div>
         )}
 
         {activeTab === 'feed' && (
           <div className="h-full overflow-hidden rounded-[24px] bg-transparent">
-            {loading ? (
+            {loading && alerts.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center rounded-[24px]" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
                 <Loader2 className="h-8 w-8 animate-spin mb-4" style={{ color: 'var(--color-primary-base)' }} />
                 <p className="text-on-surface-variant font-medium text-sm">Synchronizing data streams...</p>
@@ -284,4 +340,19 @@ export default function SentinelDashboardPage() {
       </div>
     </div>
   );
+}
+
+/** Formats a date as relative time ("2m ago", "1h ago", etc.) */
+function formatRelativeTime(date: Date): string {
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+
+  if (diffSec < 10) return 'Just now';
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }

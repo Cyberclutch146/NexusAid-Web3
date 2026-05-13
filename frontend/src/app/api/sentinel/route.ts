@@ -15,12 +15,15 @@ async function refreshSentinelCache(): Promise<SentinelAlert[]> {
   if (!refreshPromise) {
     refreshPromise = getAllSentinelAlerts()
       .then((alerts) => {
-        if (alerts.length > 0) {
-          cachedAlerts = alerts;
-          cachedAt = Date.now();
-        }
-
-        return cachedAlerts || alerts;
+        // Always update cache, even if empty (to avoid serving stale data indefinitely)
+        cachedAlerts = alerts;
+        cachedAt = Date.now();
+        return alerts;
+      })
+      .catch((error) => {
+        console.error('Sentinel cache refresh failed:', error);
+        // Return stale cache if available
+        return cachedAlerts || [];
       })
       .finally(() => {
         refreshPromise = null;
@@ -36,11 +39,12 @@ export async function GET() {
     const shouldRefresh = !cachedAlerts || cacheAge >= SENTINEL_REFRESH_INTERVAL_MS;
     const alerts = shouldRefresh ? await refreshSentinelCache() : cachedAlerts;
 
-    return NextResponse.json(alerts, {
+    return NextResponse.json(alerts || [], {
       headers: {
         'Cache-Control': 'no-store, max-age=0',
         'X-Sentinel-Cache': shouldRefresh ? 'refreshed' : 'hit',
         'X-Sentinel-Cache-Time': cachedAt ? new Date(cachedAt).toISOString() : '',
+        'X-Sentinel-Count': String((alerts || []).length),
       },
     });
   } catch (error) {
@@ -52,10 +56,14 @@ export async function GET() {
           'Cache-Control': 'no-store, max-age=0',
           'X-Sentinel-Cache': 'stale',
           'X-Sentinel-Cache-Time': new Date(cachedAt).toISOString(),
+          'X-Sentinel-Count': String(cachedAlerts.length),
         },
       });
     }
 
-    return NextResponse.json({ error: 'Failed to fetch Sentinel data' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch Sentinel data. All upstream sources are unreachable.' },
+      { status: 502 }
+    );
   }
 }

@@ -142,7 +142,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }: Lo
 
       <div className="h-[300px] w-full rounded-2xl overflow-hidden border border-outline-variant/30 shadow-inner relative z-0">
         <MapContainer
-          center={position || [37.7749, -122.4194]}
+          center={position || [28.6139, 77.2090]}
           zoom={position ? 15 : 12}
           style={{ height: '100%', width: '100%' }}
         >

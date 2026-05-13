@@ -518,18 +518,29 @@ export async function fetchIndiaNews(): Promise<SentinelAlert[]> {
 }
 
 export async function getAllSentinelAlerts(): Promise<SentinelAlert[]> {
+  // Wrap each source in a timeout to prevent one slow feed from blocking all others
+  const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error('Source timed out')), ms)
+      ),
+    ]);
+  };
+
+  const TIMEOUT_MS = 15000; // 15 second timeout per source
+
   const results = await Promise.allSettled([
-    fetchNoaaAlerts(),
-    fetchUsgsEarthquakes(),
-    fetchRedditSocialAlerts(),
-    fetchGdacsAlerts(),
-    fetchReliefWebNews(),
-    fetchNasaEonetAlerts(),
-    fetchSachetAlerts(),
-    fetchIndiaNews()
+    withTimeout(fetchNoaaAlerts(), TIMEOUT_MS),
+    withTimeout(fetchUsgsEarthquakes(), TIMEOUT_MS),
+    withTimeout(fetchGdacsAlerts(), TIMEOUT_MS),
+    withTimeout(fetchReliefWebNews(), TIMEOUT_MS),
+    withTimeout(fetchNasaEonetAlerts(), TIMEOUT_MS),
+    withTimeout(fetchSachetAlerts(), TIMEOUT_MS),
+    withTimeout(fetchIndiaNews(), TIMEOUT_MS),
   ]);
 
-  const sourceNames = ['NOAA', 'USGS', 'Reddit', 'GDACS', 'ReliefWeb', 'NASA EONET', 'Sachet', 'India News'];
+  const sourceNames = ['NOAA', 'USGS', 'GDACS', 'ReliefWeb', 'NASA EONET', 'Sachet', 'India News'];
 
   // Collect successful results and log failures
   const allAlerts: SentinelAlert[] = [];
@@ -537,7 +548,7 @@ export async function getAllSentinelAlerts(): Promise<SentinelAlert[]> {
     if (result.status === 'fulfilled') {
       allAlerts.push(...result.value);
     } else {
-      console.error(`Sentinel source "${sourceNames[index]}" failed:`, result.reason);
+      console.error(`Sentinel source "${sourceNames[index]}" failed:`, result.reason?.message || result.reason);
     }
   });
 

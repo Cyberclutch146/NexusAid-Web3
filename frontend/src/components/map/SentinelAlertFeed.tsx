@@ -48,7 +48,7 @@ export default function SentinelAlertFeed({ alerts }: SentinelAlertFeedProps) {
       <div className="rounded-[24px] p-10 text-center text-on-surface-variant" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
         <Activity className="h-10 w-10 mx-auto mb-3" style={{ color: 'var(--color-outline-base)' }} />
         <p className="font-semibold text-on-surface text-sm">No active alerts detected.</p>
-        <p className="text-xs mt-1">The community sentinel is monitoring data streams.</p>
+        <p className="text-xs mt-1">The community sentinel is monitoring 7 data sources across NOAA, USGS, GDACS, NASA EONET, SACHET, ReliefWeb, and India News.</p>
       </div>
     );
   }
@@ -131,7 +131,7 @@ export default function SentinelAlertFeed({ alerts }: SentinelAlertFeedProps) {
             
             <div className="flex items-center justify-between mt-4 pl-[3.25rem] border-t pt-3" style={{ borderColor: 'rgba(42,45,43,0.08)' }}>
               <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
-                {alert.source} • {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {alert.source} • {formatAlertTime(alert.timestamp)}
               </span>
               
               {alert.url && (
@@ -174,4 +174,24 @@ export default function SentinelAlertFeed({ alerts }: SentinelAlertFeedProps) {
       </div>
     </div>
   );
+}
+
+/** Formats an alert timestamp as relative time with a date fallback */
+function formatAlertTime(timestamp: string): string {
+  try {
+    const date = new Date(timestamp);
+    const now = Date.now();
+    const diffMs = now - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHrs = Math.floor(diffMin / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } catch {
+    return 'Unknown';
+  }
 }
