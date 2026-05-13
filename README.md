@@ -93,26 +93,29 @@ NexusAid-Web3/
 │   │   │   ├── (marketing)/           # Public marketing pages
 │   │   │   ├── offline/               # PWA offline fallback page
 │   │   │   └── api/                   # Next.js API routes (serverless)
-│   │   │       ├── web3/              # Blockchain API endpoints
-│   │   │       │   ├── claim-badge/   # Auto-evaluate & mint SBTs
-│   │   │       │   ├── link-wallet/   # EIP-191 wallet verification
-│   │   │       │   ├── mint-badge/    # Direct badge minting
-│   │   │       │   └── milestones/    # Escrow milestone management
 │   │   │       ├── approve-donation/  # Admin donation approval workflow
-│   │   │       ├── verify-payment/    # Razorpay payment verification
-│   │   │       ├── ipfs/upload/       # Pinata IPFS file upload
-│   │   │       ├── user/profile/      # User profile management
-│   │   │       ├── events/            # CRUD for events
 │   │   │       ├── auth/              # Authentication helpers
+│   │   │       ├── badges/claim/      # Server-side badge evaluation & claiming
 │   │   │       ├── chat/              # Real-time chat
 │   │   │       ├── chatbot/           # AI chatbot endpoint
-│   │   │       ├── search/            # Full-text search
-│   │   │       ├── sentinel/          # Disaster intelligence API
-│   │   │       ├── promote/           # Email/SMS campaign promotion
-│   │   │       ├── sms/               # Twilio SMS gateway
+│   │   │       ├── create-payment-order/ # Razorpay payment orders
+│   │   │       ├── events/            # CRUD operations for events
+│   │   │       │   ├── create/        # Event creation endpoint
+│   │   │       │   ├── join/          # Volunteer signup processing
+│   │   │       │   └── scan/          # Volunteer attendance tracking
 │   │   │       ├── generate-description/ # AI event description generator
 │   │   │       ├── generate-image/    # AI image generation
-│   │   │       └── create-payment-order/ # Razorpay payment orders
+│   │   │       ├── ipfs/upload/       # Pinata IPFS file upload
+│   │   │       ├── promote/           # Email/SMS campaign promotion
+│   │   │       ├── search/            # Full-text search
+│   │   │       ├── sentinel/          # Disaster intelligence API
+│   │   │       ├── user/profile/      # User profile management
+│   │   │       ├── verify-payment/    # Razorpay payment verification
+│   │   │       └── web3/              # Blockchain API endpoints
+│   │   │           ├── claim-badge/   # Auto-evaluate & mint SBTs
+│   │   │           ├── link-wallet/   # EIP-191 wallet verification
+│   │   │           ├── milestones/    # Escrow milestone management
+│   │   │           └── mint-badge/    # Direct badge minting
 │   │   ├── components/
 │   │   │   ├── web3/                  # Blockchain UI components
 │   │   │   │   ├── AddressBadge.tsx   # Truncated wallet address display
@@ -152,13 +155,13 @@ NexusAid-Web3/
 │   │   ├── services/                  # Business logic services
 │   │   │   ├── donationService.ts     # Unified donation tracking (fiat + crypto + cash)
 │   │   │   ├── eventService.ts        # Event CRUD operations
+│   │   │   ├── eventServiceServer.ts  # Server-side event utilities
 │   │   │   ├── userService.ts         # User profile management
 │   │   │   ├── sentinelService.ts     # AI disaster intelligence
 │   │   │   ├── aiActions.ts           # Gemini AI integrations
 │   │   │   ├── aiTools.ts             # AI tool definitions
 │   │   │   ├── chatService.ts         # Chat operations
 │   │   │   ├── emailService.ts        # Nodemailer email service
-│   │   │   ├── smsService.ts          # Twilio SMS service
 │   │   │   ├── searchService.ts       # Search indexing
 │   │   │   ├── recommendationService.ts # Event recommendations
 │   │   │   ├── notificationService.ts # Push notifications
@@ -451,25 +454,27 @@ EMAIL_PASS=your_app_password
 
 | Endpoint | Method | Description |
 |---|---|---|
+| `/api/approve-donation` | POST | Admin-only offline donation approval (Admin SDK) |
+| `/api/auth` | POST | Authentication helpers |
+| `/api/badges/claim` | POST | Auto-evaluate user metrics and mint eligible SBT badges |
+| `/api/chat` | POST | Real-time chat messaging |
+| `/api/chatbot` | POST | AI-powered chatbot (Gemini) |
+| `/api/create-payment-order` | POST | Razorpay payment order creation |
+| `/api/events/create` | POST | Secure event creation with server-side validation and geocoding |
+| `/api/events/join` | POST | Volunteer signup processing |
+| `/api/events/scan` | POST | Volunteer attendance tracking via QR scan |
+| `/api/generate-description` | POST | AI event description generation |
+| `/api/generate-image` | POST | AI image generation |
+| `/api/ipfs/upload` | POST | Upload files to Pinata IPFS and return CID |
+| `/api/promote` | POST | Email/SMS campaign promotion |
+| `/api/search` | GET | Full-text event search |
+| `/api/sentinel` | GET | Disaster intelligence data feed |
+| `/api/user/profile` | GET/POST | User profile management |
+| `/api/verify-payment` | POST | Server-side Razorpay payment signature verification |
 | `/api/web3/link-wallet` | POST | Verify EIP-191 signature and link wallet to Firebase user |
 | `/api/web3/claim-badge` | POST | Evaluate user metrics and auto-mint eligible SBT badges |
 | `/api/web3/mint-badge` | POST | Directly mint a specific badge type to an address |
 | `/api/web3/milestones` | GET/POST | Manage escrow milestones (propose, approve, reject) |
-| `/api/verify-payment` | POST | Server-side Razorpay payment signature verification |
-| `/api/approve-donation` | POST | Admin-only offline donation approval (Admin SDK) |
-| `/api/ipfs/upload` | POST | Upload files to Pinata IPFS and return CID |
-| `/api/user/profile` | GET/POST | User profile management |
-| `/api/events` | GET/POST | CRUD operations for events |
-| `/api/auth` | POST | Authentication helpers |
-| `/api/chat` | POST | Real-time chat messaging |
-| `/api/chatbot` | POST | AI-powered chatbot (Gemini) |
-| `/api/search` | GET | Full-text event search |
-| `/api/sentinel` | GET | Disaster intelligence data feed |
-| `/api/promote` | POST | Email/SMS campaign promotion |
-| `/api/sms` | POST | Twilio SMS gateway |
-| `/api/generate-description` | POST | AI event description generation |
-| `/api/generate-image` | POST | AI image generation |
-| `/api/create-payment-order` | POST | Razorpay payment order creation |
 
 ---
 
