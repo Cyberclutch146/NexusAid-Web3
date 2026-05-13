@@ -317,6 +317,16 @@ export const updateVolunteerStatus = async (eventId: string, volunteerId: string
   }
 };
 
+export const checkUserRegistration = async (eventId: string, userId: string): Promise<boolean> => {
+  try {
+    const snap = await getDoc(doc(db, `users/${userId}/registrations/${eventId}`));
+    return snap.exists();
+  } catch (error) {
+    console.error('Failed to check user registration:', error);
+    return false;
+  }
+};
+
 export const getRegisteredEvents = async (userId: string): Promise<CommunityEvent[]> => {
   const registrationsRef = collection(db, `users/${userId}/registrations`);
   const snapshot = await getDocs(registrationsRef);

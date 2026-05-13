@@ -3,7 +3,7 @@
 import { EventNeeds } from '@/types';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { addVolunteerSignup, getUserPledge, ADMIN_EMAILS } from '@/services/eventService';
+import { addVolunteerSignup, getUserPledge, ADMIN_EMAILS, checkUserRegistration } from '@/services/eventService';
 import { submitPendingDonation } from '@/services/donationService';
 import { toast } from 'sonner';
 import { VolunteerModal } from './VolunteerModal';
@@ -89,6 +89,14 @@ export function DonationPanel({
     if (!user) return;
     getUserPledge(eventId, user.uid).then((pledge) => {
       if (pledge) setGoodsPledged(true);
+    });
+  }, [user, eventId]);
+
+  // Check if the user is already registered as a volunteer
+  useEffect(() => {
+    if (!user) return;
+    checkUserRegistration(eventId, user.uid).then((isRegistered) => {
+      if (isRegistered) setPledged(true);
     });
   }, [user, eventId]);
 
