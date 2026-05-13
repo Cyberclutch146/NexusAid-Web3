@@ -43,7 +43,8 @@ export function DonationPanel({
   organizerId,
 }: DonationPanelProps) {
   const { user, profile } = useAuth();
-  const [pledged, setPledged] = useState(false);
+  const [donationPledged, setDonationPledged] = useState(false);
+  const [volunteerPledged, setVolunteerPledged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isVolunteerModalOpen, setIsVolunteerModalOpen] = useState(false);
   const [isGoodsPledgeModalOpen, setIsGoodsPledgeModalOpen] = useState(false);
@@ -96,7 +97,7 @@ export function DonationPanel({
   useEffect(() => {
     if (!user) return;
     checkUserRegistration(eventId, user.uid).then((isRegistered) => {
-      if (isRegistered) setPledged(true);
+      if (isRegistered) setVolunteerPledged(true);
     });
   }, [user, eventId]);
 
@@ -151,7 +152,7 @@ export function DonationPanel({
             });
             const result = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(result.error || 'Verification failed');
-            setPledged(true);
+            setDonationPledged(true);
             toast.success(`Thank you! Receipt: ${result.receiptId}`);
             onActionComplete?.();
           } catch (err) {
@@ -229,7 +230,7 @@ export function DonationPanel({
       setShowOfflineForm(false);
       setOfflineReference('');
       setOfflineAmount(500);
-      setPledged(true);
+      setDonationPledged(true);
       onActionComplete?.();
     } catch (err) {
       console.error(err);
@@ -250,7 +251,7 @@ export function DonationPanel({
   const handleVolunteerRegister = async (name: string, email: string, ticketId: string) => {
     if (!user) return;
     await addVolunteerSignup(eventId, user.uid, name, email, ticketId);
-    setPledged(true);
+    setVolunteerPledged(true);
     onActionComplete?.();
   };
 
@@ -317,7 +318,7 @@ export function DonationPanel({
               </div>
             </div>
 
-            {!pledged ? (
+            {!donationPledged ? (
               <button
                 onClick={handleDonate}
                 disabled={loading || !user}
@@ -499,7 +500,7 @@ export function DonationPanel({
             <p className="text-on-surface-variant text-sm mb-6">
               Sign up for a shift. The organizer will contact you with details and waivers if necessary.
             </p>
-            {!pledged ? (
+            {!volunteerPledged ? (
               <button
                 onClick={handleVolunteerClick}
                 disabled={loading || !user}

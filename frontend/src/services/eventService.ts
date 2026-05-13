@@ -319,8 +319,14 @@ export const updateVolunteerStatus = async (eventId: string, volunteerId: string
 
 export const checkUserRegistration = async (eventId: string, userId: string): Promise<boolean> => {
   try {
-    const snap = await getDoc(doc(db, `users/${userId}/registrations/${eventId}`));
-    return snap.exists();
+    // Check the specific user registrations path first
+    const regSnap = await getDoc(doc(db, 'users', userId, 'registrations', eventId));
+    if (regSnap.exists()) return true;
+
+    // Fallback: Check the actual volunteers subcollection on the event directly
+    // This matches the exact path the backend checks for duplicates
+    const volSnap = await getDoc(doc(db, 'events', eventId, 'volunteers', userId));
+    return volSnap.exists();
   } catch (error) {
     console.error('Failed to check user registration:', error);
     return false;
