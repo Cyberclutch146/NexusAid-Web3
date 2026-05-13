@@ -288,7 +288,7 @@ export default function AIChatWidget() {
 
                         {msg.action.type === 'confirm_signup' && (
                           <span className="inline-flex items-center gap-1 text-xs text-current/60 italic">
-                            💬 Reply &quot;yes&quot; to confirm
+                            📧 Check your email for the 6-digit code
                           </span>
                         )}
                       </div>

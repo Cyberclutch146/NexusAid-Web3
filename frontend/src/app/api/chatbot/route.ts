@@ -126,14 +126,15 @@ ${sentinelContext}
 
 IMPORTANT INSTRUCTIONS:
 - When users ask for events, recommend specific live events. Be conversational and natural.
-- When a user wants to sign up/volunteer, use the "request_signup" function first to confirm, then "confirm_signup" only after they say yes.
-- When a user says "yes", "confirm", "go ahead", "sure" in response to a signup confirmation, use the "confirm_signup" function.
+- When a user wants to sign up/volunteer, use the "request_signup" function. This will send a verification code to their email.
+- After "request_signup" is called, the user needs to provide the 6-digit verification code from their email. When they provide a 6-digit number (e.g. "123456", "my code is 482910"), call "confirm_signup" with that number as the otpCode parameter.
+- NEVER call "confirm_signup" without an otpCode. The user MUST provide their email verification code first.
 - When a user asks to navigate somewhere, use the "navigate_to_page" function.
 - Keep responses concise (under 4-5 sentences) and engaging.
 - Use bold text (**text**) for event names and important information.
 - Always be encouraging about volunteering and community involvement.${pendingSignup ? `
 
-IMPORTANT CONTEXT: The user was just asked to confirm signing up for the event titled "${pendingSignup.eventTitle}"${pendingSignup.eventId ? ` (ID: ${pendingSignup.eventId})` : ''}. If the user says "yes", "confirm", "sure", "go ahead", or anything affirmative, you MUST call the confirm_signup function with eventTitle: "${pendingSignup.eventTitle}"${pendingSignup.eventId ? ` and eventId: "${pendingSignup.eventId}"` : ''}.` : ''}`;
+IMPORTANT CONTEXT: A verification code was sent to the user's email for the event titled "${pendingSignup.eventTitle}"${pendingSignup.eventId ? ` (ID: ${pendingSignup.eventId})` : ''}. The user needs to provide the 6-digit code. When they share a 6-digit number, you MUST call the confirm_signup function with otpCode set to that number, eventTitle: "${pendingSignup.eventTitle}"${pendingSignup.eventId ? `, and eventId: "${pendingSignup.eventId}"` : ''}.` : ''}`;
 
     const genAI = new GoogleGenerativeAI(apiKey);
 

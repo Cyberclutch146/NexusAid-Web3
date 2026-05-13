@@ -66,7 +66,7 @@ export const AI_FUNCTION_DECLARATIONS = [
   {
     name: "request_signup",
     description:
-      "Request to sign the user up as a volunteer for a specific event. This should be used when the user expresses intent to volunteer or sign up for an event. Always confirm with the user before executing.",
+      "Request to sign the user up as a volunteer for a specific event. This sends a verification code (OTP) to the user's email. Use this when the user expresses intent to volunteer or sign up for an event. After calling this, instruct the user to check their email and provide the 6-digit verification code.",
     parameters: {
       type: "object" as const,
       properties: {
@@ -81,7 +81,7 @@ export const AI_FUNCTION_DECLARATIONS = [
   {
     name: "confirm_signup",
     description:
-      "Execute the actual signup after the user has confirmed they want to sign up. Only call this after the user explicitly confirms (e.g., 'yes', 'confirm', 'go ahead'). You MUST provide the eventTitle. If you have the eventId, include it too, but the title alone is sufficient to look up the event.",
+      "Complete the volunteer signup AFTER the user provides a valid 6-digit verification code from their email. You MUST provide the otpCode the user shared. Only call this when the user provides a 6-digit number in response to the OTP request. You MUST provide the eventTitle. If you have the eventId, include it too.",
     parameters: {
       type: "object" as const,
       properties: {
@@ -93,8 +93,12 @@ export const AI_FUNCTION_DECLARATIONS = [
           type: "string",
           description: "The title of the event to sign up for. This is always required.",
         },
+        otpCode: {
+          type: "string",
+          description: "The 6-digit verification code the user received via email. This is always required.",
+        },
       },
-      required: ["eventTitle"],
+      required: ["eventTitle", "otpCode"],
     },
   },
   {
@@ -244,8 +248,19 @@ export async function handleGetEventDetails(eventTitle: string): Promise<ActionR
   }
 }
 
-export async function handleRequestSignup(eventTitle: string): Promise<ActionResult> {
+export async function handleRequestSignup(
+  eventTitle: string,
+  userEmail: string
+): Promise<ActionResult> {
   try {
+    if (!userEmail) {
+      return {
+        success: false,
+        message: "You need to be logged in with a valid email to sign up for events. Please log in first!",
+        action: { type: "navigate", url: "/" },
+      };
+    }
+
     const events = await fetchAllEvents();
     const event = findEventByTitle(events, eventTitle);
 
@@ -268,9 +283,30 @@ export async function handleRequestSignup(eventTitle: string): Promise<ActionRes
       }
     }
 
+    // Send the OTP email to the user
+    try {
+      const otpRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, eventTitle: event.title }),
+      });
+
+      if (!otpRes.ok) {
+        const errData = await otpRes.json().catch(() => null);
+        throw new Error(errData?.error || 'Failed to send verification email');
+      }
+    } catch (otpErr: any) {
+      console.error("OTP send error:", otpErr);
+      return {
+        success: false,
+        message: `I found the event but couldn't send a verification email to ${userEmail}. Error: ${otpErr.message}. You can try signing up directly from the event page.`,
+        action: { type: "navigate", url: `/event/${event.id}` },
+      };
+    }
+
     return {
       success: true,
-      message: `I found **${event.title}** at ${event.location}. Would you like me to sign you up as a volunteer? Just say **"yes"** or **"confirm"** to proceed.`,
+      message: `I found **${event.title}** at ${event.location}. I've sent a **6-digit verification code** to your email (${userEmail}). Please check your inbox and share the code with me to complete your registration.`,
       action: {
         type: "confirm_signup",
         eventId: event.id,
@@ -286,6 +322,7 @@ export async function handleRequestSignup(eventTitle: string): Promise<ActionRes
 export async function handleConfirmSignup(
   eventId: string | undefined,
   eventTitle: string,
+  otpCode: string | undefined,
   userId: string,
   userName: string,
   userEmail: string
@@ -299,7 +336,42 @@ export async function handleConfirmSignup(
       };
     }
 
-    // If we don't have an eventId, look up the event by title
+    if (!otpCode || otpCode.length !== 6) {
+      return {
+        success: false,
+        message: "I need the **6-digit verification code** that was sent to your email. Please check your inbox and share the code with me.",
+      };
+    }
+
+    // Verify the OTP first
+    const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail, code: otpCode }),
+    });
+
+    const verifyData = await verifyRes.json();
+
+    if (!verifyRes.ok) {
+      if (verifyRes.status === 410) {
+        return {
+          success: false,
+          message: "Your verification code has **expired**. Please say \"sign me up\" again and I'll send a fresh code to your email.",
+        };
+      }
+      if (verifyRes.status === 401) {
+        return {
+          success: false,
+          message: "That code is **incorrect**. Please double-check the 6-digit code from your email and try again.",
+        };
+      }
+      return {
+        success: false,
+        message: verifyData.error || "Verification failed. Please try again.",
+      };
+    }
+
+    // OTP verified — now proceed with the actual signup
     let resolvedId = eventId;
     let resolvedTitle = eventTitle;
 
@@ -323,11 +395,19 @@ export async function handleConfirmSignup(
       };
     }
 
-    await addVolunteerSignup(resolvedId, userId, userName, userEmail);
+    const ticketId = Math.random().toString(36).substring(2, 12).toUpperCase();
+    await addVolunteerSignup(resolvedId, userId, userName, userEmail, ticketId);
+
+    // Send confirmation email (non-blocking)
+    fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/confirm-registration`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail, eventTitle: resolvedTitle, ticketId }),
+    }).catch((err) => console.warn('Confirmation email failed:', err));
 
     return {
       success: true,
-      message: `🎉 You're all set! You've been signed up as a volunteer for **${resolvedTitle}**. You can view your registered events on your dashboard.`,
+      message: `🎉 Email verified and you're all set! You've been signed up as a volunteer for **${resolvedTitle}**. Your ticket ID is **${ticketId}**. A confirmation email with your digital ticket has been sent.`,
       action: {
         type: "signed_up",
         url: `/event/${resolvedId}`,
@@ -385,9 +465,9 @@ export async function executeFunction(
     case "get_event_details":
       return handleGetEventDetails(args.eventTitle);
     case "request_signup":
-      return handleRequestSignup(args.eventTitle);
+      return handleRequestSignup(args.eventTitle, userEmail || '');
     case "confirm_signup":
-      return handleConfirmSignup(args.eventId, args.eventTitle, userId, userName, userEmail || '');
+      return handleConfirmSignup(args.eventId, args.eventTitle, args.otpCode, userId, userName, userEmail || '');
     case "navigate_to_page":
       return handleNavigateToPage(args.pageName);
     default:
