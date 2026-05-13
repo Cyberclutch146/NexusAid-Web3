@@ -2,24 +2,27 @@
 
 import { Lora } from 'next/font/google'
 import { useRouter, usePathname } from 'next/navigation'
-import { Search, Bell, X, Sun, Moon, User, LogOut, Info, ChevronDown, CheckCheck } from 'lucide-react'
+import { Search, Bell, X, Sun, Moon, User, LogOut, Info, ChevronDown, CheckCheck, Server, Wallet } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useWallet } from '@/hooks/useWallet'
 import { AddressBadge } from '@/components/web3/AddressBadge'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type MouseEvent as ReactMouseEvent } from 'react'
 import { useTheme } from 'next-themes'
 import { AnimatePresence, motion } from 'framer-motion'
 import { getUserAvatar } from '@/utils/avatar'
 import { NotificationData } from '@/types'
-import { subscribeToNotifications, markAsRead, markAllAsRead } from '@/services/notificationService'
+import { subscribeToNotifications, markAsRead, markAllAsRead, deleteNotification } from '@/services/notificationService'
 import { SentinelAlert } from '@/types/sentinel'
 
 const lora = Lora({ subsets: ['latin'], weight: ['400', '600', '700'] })
+const DISMISSED_NOTIFICATION_IDS_KEY = 'nexusaid:dismissed-notifications'
 
 /** Format a Firestore timestamp into a human-readable "time ago" string */
-function timeAgo(ts: any): string {
+function timeAgo(ts: unknown): string {
   if (!ts) return ''
-  const date = ts.toDate ? ts.toDate() : new Date(ts)
+  const date = typeof ts === 'object' && ts !== null && 'toDate' in ts && typeof ts.toDate === 'function'
+    ? ts.toDate()
+    : new Date(ts as string | number | Date)
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
   if (seconds < 60) return 'just now'
   const minutes = Math.floor(seconds / 60)
@@ -34,6 +37,7 @@ export default function NavbarTop() {
   const router = useRouter()
   const pathname = usePathname()
   const { profile, logout } = useAuth()
+  const profileId = profile?.id
   const { address, networkName, balance, connect, isConnecting } = useWallet()
   const { setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -43,6 +47,7 @@ export default function NavbarTop() {
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [localNotifications, setLocalNotifications] = useState<NotificationData[]>([])
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
@@ -50,6 +55,15 @@ export default function NavbarTop() {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       setMounted(true)
+      const dismissedIds = window.localStorage.getItem(DISMISSED_NOTIFICATION_IDS_KEY)
+      if (dismissedIds) {
+        try {
+          const parsedDismissedIds = JSON.parse(dismissedIds)
+          if (Array.isArray(parsedDismissedIds)) setDismissedNotificationIds(parsedDismissedIds)
+        } catch {
+          window.localStorage.removeItem(DISMISSED_NOTIFICATION_IDS_KEY)
+        }
+      }
     })
 
     return () => window.cancelAnimationFrame(frame)
@@ -74,17 +88,23 @@ export default function NavbarTop() {
 
   // ── Real-time Firestore notifications ──
   useEffect(() => {
-    if (!profile?.id) {
-      setNotifications([])
-      return
+    if (!profileId) {
+      const clearNotifications = window.setTimeout(() => setNotifications([]), 0)
+      return () => window.clearTimeout(clearNotifications)
     }
 
-    const unsubscribe = subscribeToNotifications(profile.id, (firestoreNotifs) => {
-      setNotifications(firestoreNotifs)
-    })
+    let unsubscribe: (() => void) | undefined
+    const unsubscribeFrame = window.setTimeout(() => {
+      unsubscribe = subscribeToNotifications(profileId, (firestoreNotifs) => {
+        setNotifications(firestoreNotifs)
+      })
+    }, 0)
 
-    return () => unsubscribe()
-  }, [profile?.id])
+    return () => {
+      window.clearTimeout(unsubscribeFrame)
+      unsubscribe?.()
+    }
+  }, [profileId])
 
   // ── Local / ephemeral notifications (sentinel + profile) ──
   useEffect(() => {
@@ -138,7 +158,7 @@ export default function NavbarTop() {
   }, [profile?.profileComplete])
 
   // ── Merge: persistent first, then local ──
-  const allNotifications = [...notifications, ...localNotifications]
+  const allNotifications = [...notifications, ...localNotifications].filter((notification) => !dismissedNotificationIds.includes(notification.id))
 
   const handleSearch = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
@@ -171,7 +191,6 @@ export default function NavbarTop() {
     { label: 'Events', path: '/feed' },
     { label: 'Create', path: '/create' },
     { label: 'Dashboard', path: '/dashboard', exact: true },
-    { label: 'Blockchain', path: '/dashboard/blockchain' },
     { label: 'Sentinel', path: '/dashboard/sentinel' },
     { label: 'Leaderboard', path: '/leaderboard' },
   ]
@@ -184,20 +203,35 @@ export default function NavbarTop() {
   const unreadCount = allNotifications.filter((n) => !n.read).length
 
   const handleMarkAllRead = useCallback(async () => {
-    if (!profile?.id) return
-    await markAllAsRead(profile.id)
+    if (!profileId) return
+    await markAllAsRead(profileId)
     // Also clear local unread flags
     setLocalNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-  }, [profile?.id])
+  }, [profileId])
 
   const handleNotificationClick = useCallback(async (notification: NotificationData) => {
     setNotificationMenuOpen(false)
     // Mark persistent ones as read
-    if (profile?.id && !notification.id.startsWith('complete-profile') && !notification.id.startsWith('sentinel-')) {
-      markAsRead(profile.id, notification.id)
+    if (profileId && !notification.id.startsWith('complete-profile') && !notification.id.startsWith('sentinel-')) {
+      markAsRead(profileId, notification.id)
     }
     router.push(notification.path)
-  }, [profile?.id, router])
+  }, [profileId, router])
+
+  const handleDismissNotification = useCallback(async (event: ReactMouseEvent, notification: NotificationData) => {
+    event.stopPropagation()
+
+    setDismissedNotificationIds((prev) => {
+      if (prev.includes(notification.id)) return prev
+      const next = [...prev, notification.id]
+      window.localStorage.setItem(DISMISSED_NOTIFICATION_IDS_KEY, JSON.stringify(next))
+      return next
+    })
+
+    if (profileId && !notification.id.startsWith('complete-profile') && !notification.id.startsWith('sentinel-')) {
+      await deleteNotification(profileId, notification.id)
+    }
+  }, [profileId])
 
   const notificationToneStyles: Record<NotificationData['tone'], { accent: string; background: string; border: string }> = {
     alert: {
@@ -271,22 +305,6 @@ export default function NavbarTop() {
               </button>
             )
           })}
-          
-          {/* Network Pill */}
-          {networkName && (
-            <div 
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full ml-2 animate-in fade-in slide-in-from-right-4 duration-500"
-              style={{ 
-                background: 'rgba(59, 107, 74, 0.08)',
-                border: '1px solid rgba(59, 107, 74, 0.15)',
-              }}
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-                {networkName}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Right Section */}
@@ -386,42 +404,61 @@ export default function NavbarTop() {
                           <p className="mt-1 text-[11px] text-on-surface-variant">No new notifications. You&apos;re all caught up!</p>
                         </div>
                       ) : (
-                        allNotifications.map((notification) => {
-                          const tone = notificationToneStyles[notification.tone]
-                          return (
-                            <button
-                              key={notification.id}
-                              onClick={() => handleNotificationClick(notification)}
-                              className="w-full rounded-[20px] p-3 text-left transition-all duration-200 hover:-translate-y-0.5"
-                              style={{
-                                background: tone.background,
-                                border: `1px solid ${tone.border}`,
-                                opacity: notification.read ? 0.65 : 1,
-                              }}
-                            >
-                              <div className="flex items-start gap-3">
-                                <span
-                                  className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                                  style={{ background: 'color-mix(in srgb, var(--color-surface-bright-base) 82%, transparent)', color: tone.accent, border: `1px solid ${tone.border}` }}
+                        <AnimatePresence initial={false}>
+                          {allNotifications.map((notification) => {
+                            const tone = notificationToneStyles[notification.tone]
+                            return (
+                              <motion.div
+                                key={notification.id}
+                                layout
+                                initial={{ opacity: 0, x: 18, scale: 0.98 }}
+                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: 120, scale: 0.96, height: 0, marginBottom: 0 }}
+                                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                                className="relative overflow-hidden rounded-[20px]"
+                              >
+                                <button
+                                  onClick={() => handleNotificationClick(notification)}
+                                  className="w-full p-3 pr-10 text-left transition-all duration-200 hover:-translate-y-0.5"
+                                  style={{
+                                    background: tone.background,
+                                    border: `1px solid ${tone.border}`,
+                                    opacity: notification.read ? 0.65 : 1,
+                                  }}
                                 >
-                                  <Bell size={15} />
-                                  {!notification.read && (
-                                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[var(--color-terracotta)] ring-2 ring-[var(--color-surface-base)]" />
-                                  )}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-baseline justify-between gap-2">
-                                    <p className="text-sm font-semibold text-on-surface truncate">{notification.title}</p>
-                                    {notification.createdAt && (
-                                      <span className="shrink-0 text-[10px] text-on-surface-variant">{timeAgo(notification.createdAt)}</span>
-                                    )}
+                                  <div className="flex items-start gap-3">
+                                    <span
+                                      className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                                      style={{ background: 'color-mix(in srgb, var(--color-surface-bright-base) 82%, transparent)', color: tone.accent, border: `1px solid ${tone.border}` }}
+                                    >
+                                      <Bell size={15} />
+                                      {!notification.read && (
+                                        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[var(--color-terracotta)] ring-2 ring-[var(--color-surface-base)]" />
+                                      )}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-baseline justify-between gap-2">
+                                        <p className="text-sm font-semibold text-on-surface truncate">{notification.title}</p>
+                                        {notification.createdAt && (
+                                          <span className="shrink-0 text-[10px] text-on-surface-variant">{timeAgo(notification.createdAt)}</span>
+                                        )}
+                                      </div>
+                                      <p className="mt-1 text-[11px] leading-relaxed text-on-surface-variant">{notification.body}</p>
+                                    </div>
                                   </div>
-                                  <p className="mt-1 text-[11px] leading-relaxed text-on-surface-variant">{notification.body}</p>
-                                </div>
-                              </div>
-                            </button>
-                          )
-                        })
+                                </button>
+                                <button
+                                  onClick={(event) => handleDismissNotification(event, notification)}
+                                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+                                  style={{ background: 'color-mix(in srgb, var(--color-surface-base) 86%, transparent)', color: 'var(--color-on-surface-variant-base)', border: '1px solid var(--glass-border)' }}
+                                  title="Dismiss notification"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </motion.div>
+                            )
+                          })}
+                        </AnimatePresence>
                       )}
                     </div>
 
@@ -509,6 +546,13 @@ export default function NavbarTop() {
                             <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Wallet</span>
                             <span className="text-[10px] font-bold text-primary">{balance} ETH</span>
                           </div>
+                          <div className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background: 'rgba(59,107,74,0.08)', border: '1px solid rgba(59,107,74,0.12)' }}>
+                            <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                              <Server size={13} />
+                              {networkName === 'Hardhat' ? 'Hardhat active' : networkName || 'Network ready'}
+                            </span>
+                            <span className={`h-2 w-2 rounded-full ${networkName ? 'bg-green-500 animate-pulse' : 'bg-on-surface-variant/40'}`} />
+                          </div>
                           <AddressBadge address={address} isHardhat={networkName === 'Hardhat'} className="w-full justify-between" />
                         </div>
                       ) : (
@@ -525,6 +569,28 @@ export default function NavbarTop() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => { setProfileMenuOpen(false); router.push('/dashboard/blockchain'); }}
+                      className="col-span-2 rounded-[20px] px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5"
+                      style={{
+                        background: 'color-mix(in srgb, var(--color-warm-amber) 12%, var(--color-surface-container-high-base) 88%)',
+                        border: '1px solid color-mix(in srgb, var(--color-warm-amber) 20%, var(--glass-border) 80%)',
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-9 w-9 items-center justify-center rounded-xl"
+                          style={{ background: 'color-mix(in srgb, var(--color-surface-bright-base) 82%, transparent)', border: '1px solid var(--glass-border)' }}
+                        >
+                          <Wallet size={17} className="text-on-surface-variant" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-on-surface">Blockchain Hub</p>
+                          <p className="text-[11px] text-on-surface-variant">{networkName === 'Hardhat' ? 'Hardhat local network connected' : 'Wallet, badges, and on-chain tools'}</p>
+                        </div>
+                      </div>
+                    </button>
+
                     <button
                       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                       className="col-span-2 rounded-[20px] px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5"

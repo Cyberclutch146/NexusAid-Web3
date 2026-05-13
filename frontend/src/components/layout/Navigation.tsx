@@ -15,12 +15,10 @@ import { AddressBadge } from '@/components/web3/AddressBadge';
 export function SideNav() {
   const pathname = usePathname();
   const { profile } = useAuth();
-  const { address, networkName } = useWallet();
   
   const navItems = [
     { name: 'Feed', href: '/feed', icon: 'dashboard' },
     { name: 'Dashboard', href: '/dashboard', icon: 'volunteer_activism' },
-    { name: 'Blockchain', href: '/dashboard/blockchain', icon: 'hub' },
     { name: 'Sentinel', href: '/dashboard/sentinel', icon: 'security' },
     { name: 'Leaderboard', href: '/leaderboard', icon: 'emoji_events' },
     { name: 'Create', href: '/create', icon: 'inventory_2' },
@@ -51,15 +49,7 @@ export function SideNav() {
         </div>
         <div>
           <h1 className="font-headline text-lg font-bold tracking-tight text-gradient-earth">NexusAid</h1>
-          <div className="flex items-center gap-1.5">
-            <p className="font-body text-xs text-on-surface-variant">Local Team</p>
-            {networkName && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/5 border border-primary/10">
-                <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[8px] font-bold uppercase tracking-tighter opacity-70">{networkName}</span>
-              </div>
-            )}
-          </div>
+          <p className="font-body text-xs text-on-surface-variant">Local Team</p>
         </div>
       </Link>
       
@@ -234,7 +224,9 @@ export function MobileHeader() {
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-[9px] font-bold uppercase text-on-surface-variant opacity-70">{networkName}</span>
+                          <span className="text-[9px] font-bold uppercase text-on-surface-variant opacity-70">
+                            {networkName === 'Hardhat' ? 'Hardhat active' : networkName}
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-end justify-between gap-4">
@@ -255,6 +247,31 @@ export function MobileHeader() {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      router.push('/dashboard/blockchain');
+                    }}
+                    className="col-span-2 rounded-[20px] px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5"
+                    style={{
+                      background: 'color-mix(in srgb, var(--color-warm-amber) 12%, var(--color-surface-container-high-base) 88%)',
+                      border: '1px solid color-mix(in srgb, var(--color-warm-amber) 20%, var(--glass-border) 80%)',
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-9 w-9 items-center justify-center rounded-xl"
+                        style={{ background: 'color-mix(in srgb, var(--color-surface-bright-base) 82%, transparent)', border: '1px solid var(--glass-border)' }}
+                      >
+                        <Wallet size={17} className="text-on-surface-variant" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-on-surface">Blockchain Hub</p>
+                        <p className="text-[11px] text-on-surface-variant">{networkName === 'Hardhat' ? 'Hardhat local network connected' : 'Wallet and on-chain tools'}</p>
+                      </div>
+                    </div>
+                  </button>
+
                   <button
                     onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                     className="col-span-2 rounded-[20px] px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5"
@@ -354,7 +371,6 @@ export function MobileBottomNav() {
     { name: 'Feed', href: '/feed', icon: 'dashboard', exact: true },
     { name: 'Create', href: '/create', icon: 'add_circle', exact: true },
     { name: 'Dashboard', href: '/dashboard', icon: 'volunteer_activism', exact: true },
-    { name: 'Blockchain', href: '/dashboard/blockchain', icon: 'hub' },
     { name: 'Sentinel', href: '/dashboard/sentinel', icon: 'security' },
   ];
 
