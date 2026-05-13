@@ -10,9 +10,9 @@ import { BadgeDisplay } from '@/components/web3/BadgeDisplay';
 import { getReadOnlyReputationContract } from '@/lib/web3/reputationContract';
 import { toast } from 'sonner';
 
-const AMOY_RPC          = process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc-amoy.polygon.technology';
-const DONATE_ADDRESS    = process.env.NEXT_PUBLIC_DONATE_CONTRACT;
-const ESCROW_ADDRESS    = process.env.NEXT_PUBLIC_ESCROW_CONTRACT;
+const AMOY_RPC = process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc-amoy.polygon.technology';
+const DONATE_ADDRESS = process.env.NEXT_PUBLIC_DONATE_CONTRACT;
+const ESCROW_ADDRESS = process.env.NEXT_PUBLIC_ESCROW_CONTRACT;
 const REPUTATION_ADDRESS = process.env.NEXT_PUBLIC_REPUTATION_CONTRACT;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -23,10 +23,10 @@ function truncate(addr: string) {
 // ─── Components ───────────────────────────────────────────────────────────────
 function BentoBox({ children, className = '', style = {} }: { children: React.ReactNode, className?: string, style?: React.CSSProperties }) {
   return (
-    <section 
+    <section
       className={`rounded-[32px] p-6 relative overflow-hidden transition-all duration-500 hover:shadow-[0_12px_48px_rgba(42,45,43,0.08)] ${className}`}
-      style={{ 
-        background: 'var(--glass-bg)', 
+      style={{
+        background: 'var(--glass-bg)',
         border: '1px solid var(--glass-border)',
         boxShadow: '0 8px 32px rgba(42, 45, 43, 0.04)',
         backdropFilter: 'blur(24px) saturate(1.4)',
@@ -47,11 +47,11 @@ function StatBento({
   return (
     <BentoBox className={`${className} flex flex-col justify-between group`}>
       <div className="flex items-start justify-between mb-4">
-        <div 
+        <div
           className="p-3 rounded-[20px] transition-transform duration-500 ease-out group-hover:scale-110 group-hover:-rotate-3"
           style={{ background: color ? `${color}18` : 'rgba(59,107,74,0.1)' }}
         >
-          <span 
+          <span
             className="material-symbols-outlined text-[28px]"
             style={{ color: color || 'var(--color-primary-base)' }}
           >
@@ -77,12 +77,12 @@ export default function BlockchainDashboardPage() {
     address, isConnecting, isLinking, isLinked, connect, linkWallet,
   } = useWallet();
 
-  const [maticBalance, setMaticBalance]   = useState<string | null>(null);
-  const [badgeCount,   setBadgeCount]     = useState<number | null>(null);
-  const [totalMinted,  setTotalMinted]    = useState<number | null>(null);
-  const [networkInfo,  setNetworkInfo]    = useState({ name: 'Checking...', chainId: 0 });
-  const [loadingStats, setLoadingStats]   = useState(false);
-  const [isClaiming,   setIsClaiming]     = useState(false);
+  const [maticBalance, setMaticBalance] = useState<string | null>(null);
+  const [badgeCount, setBadgeCount] = useState<number | null>(null);
+  const [totalMinted, setTotalMinted] = useState<number | null>(null);
+  const [networkInfo, setNetworkInfo] = useState({ name: 'Checking...', chainId: 0 });
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const handleClaimBadges = async () => {
     const walletAddr = address || profile?.walletAddress;
@@ -95,7 +95,7 @@ export default function BlockchainDashboardPage() {
       const idToken = await user.getIdToken();
       const response = await fetch('/api/web3/claim-badge', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`,
         },
@@ -195,14 +195,14 @@ export default function BlockchainDashboardPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24">
-      
+
       {/* ─── Page header ──────────────────────────────────────── */}
       <div className="flex items-center gap-4 mb-8">
         <div
           className="p-3.5 rounded-[24px] shadow-sm"
-          style={{ 
-            background: 'linear-gradient(135deg, rgba(59,107,74,0.15), rgba(59,107,74,0.05))', 
-            border: '1px solid rgba(59,107,74,0.2)' 
+          style={{
+            background: 'linear-gradient(135deg, rgba(59,107,74,0.15), rgba(59,107,74,0.05))',
+            border: '1px solid rgba(59,107,74,0.2)'
           }}
         >
           <span className="material-symbols-outlined text-[32px]" style={{ color: 'var(--color-primary-base)' }}>
@@ -210,7 +210,7 @@ export default function BlockchainDashboardPage() {
           </span>
         </div>
         <div>
-          <h1 className="text-3xl font-black text-on-surface tracking-tight">Blockchain Hub</h1>
+          <h1 className="text-4xl font-sans text-on-surface tracking-tight">Blockchain Hub</h1>
           <p className="text-base font-medium text-on-surface-variant mt-1">
             Your decentralized identity, badges, and campaign activity on Polygon.
           </p>
@@ -248,7 +248,7 @@ export default function BlockchainDashboardPage() {
 
       {/* ─── Bento Grid ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        
+
         {/* Wallet Identity Bento */}
         <BentoBox className="lg:col-span-2 lg:row-span-2 flex flex-col justify-between group" style={{
           background: 'linear-gradient(145deg, color-mix(in srgb, var(--color-surface-base) 90%, transparent), color-mix(in srgb, var(--color-primary-container-base) 10%, transparent))'
@@ -278,7 +278,7 @@ export default function BlockchainDashboardPage() {
                   toast.success('Address copied!');
                 }}>
                   <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-primary/20 via-terracotta/20 to-primary/20 opacity-0 group-hover/copy:opacity-100 transition-opacity duration-500 blur-md"></div>
-                  <div 
+                  <div
                     className="relative rounded-[24px] p-5 flex items-center justify-between gap-4 transition-transform duration-300 group-hover/copy:-translate-y-0.5"
                     style={{ background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)' }}
                   >
@@ -338,7 +338,7 @@ export default function BlockchainDashboardPage() {
               </div>
             )}
           </div>
-          
+
           {isLinked && (
             <div className="mt-6 pt-5 border-t border-glass flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-green-600/80">
               <span className="material-symbols-outlined text-[16px]">verified</span>
@@ -464,11 +464,11 @@ export default function BlockchainDashboardPage() {
               Contracts
             </p>
           </div>
-          
+
           <div className="flex-1 space-y-3">
             {[
-              { label: 'NexusDonate',     address: DONATE_ADDRESS,     icon: 'volunteer_activism' },
-              { label: 'NexusEscrow',     address: ESCROW_ADDRESS,     icon: 'account_balance' },
+              { label: 'NexusDonate', address: DONATE_ADDRESS, icon: 'volunteer_activism' },
+              { label: 'NexusEscrow', address: ESCROW_ADDRESS, icon: 'account_balance' },
               { label: 'NexusReputation', address: REPUTATION_ADDRESS, icon: 'military_tech' },
             ].map(({ label, address: contractAddr, icon }) => (
               <div
@@ -510,15 +510,15 @@ export default function BlockchainDashboardPage() {
               Badge Tier Guide
             </p>
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { emoji: '🥉', label: 'Bronze',   color: '#cd7f32', desc: '0.01 MATIC or 5 hours' },
-              { emoji: '🥈', label: 'Silver',   color: '#9ca3af', desc: '0.05 MATIC or 20 hours' },
-              { emoji: '🥇', label: 'Gold',     color: '#d4a800', desc: '0.1 MATIC or 35 hours' },
+              { emoji: '🥉', label: 'Bronze', color: '#cd7f32', desc: '0.01 MATIC or 5 hours' },
+              { emoji: '🥈', label: 'Silver', color: '#9ca3af', desc: '0.05 MATIC or 20 hours' },
+              { emoji: '🥇', label: 'Gold', color: '#d4a800', desc: '0.1 MATIC or 35 hours' },
               { emoji: '💠', label: 'Platinum', color: '#6db3b8', desc: '0.5 MATIC or 60 hours' },
-              { emoji: '⚡', label: 'Master',   color: '#9b59b6', desc: '1.0 MATIC or 100 hours' },
-              { emoji: '💎', label: 'Diamond',  color: '#0ea5e9', desc: 'Exceptional service' },
+              { emoji: '⚡', label: 'Master', color: '#9b59b6', desc: '1.0 MATIC or 100 hours' },
+              { emoji: '💎', label: 'Diamond', color: '#0ea5e9', desc: 'Exceptional service' },
             ].map(({ emoji, label, color, desc }) => (
               <div
                 key={label}

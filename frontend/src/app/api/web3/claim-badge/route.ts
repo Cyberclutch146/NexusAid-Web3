@@ -101,44 +101,69 @@ export async function POST(req: NextRequest) {
     const existingBadges: any[] = userData?.badges || [];
     const ownedBadgeTypes = new Set(existingBadges.map((b: any) => b.badgeType));
 
-    // Start with totalDonated from the user's own profile
-    let totalDonated: number = parseFloat(userData?.totalDonated) || 0;
+    // Start with totalDonated from the user's own profile (in INR)
+    let firebaseTotalDonated: number = parseFloat(userData?.totalDonated) || 0;
+    let firebaseMatic = firebaseTotalDonated / 2500; // Convert INR to MATIC equivalent
 
     // Also check if there is a wallet stub (created when user donated before linking)
     const recipientLower = recipientAddress.toLowerCase();
     const stubSnap = await adminDb.collection('users').doc(`wallet_${recipientLower}`).get();
     if (stubSnap.exists) {
       const stubDonated = parseFloat(stubSnap.data()?.totalDonated) || 0;
-      totalDonated += stubDonated;
+      firebaseTotalDonated += stubDonated;
+      firebaseMatic = firebaseTotalDonated / 2500;
+      
       // Merge the stub's totalDonated into the real user profile and delete the stub
       await userRef.set({
         totalDonated: adminDb.constructor.name === 'Firestore'
-          ? totalDonated  // plain number merge
-          : totalDonated,
+          ? firebaseTotalDonated  // plain number merge
+          : firebaseTotalDonated,
         walletAddress: recipientLower,
       }, { merge: true });
       await stubSnap.ref.delete();
-      console.log(`[claim-badge] Merged wallet stub (+${stubDonated} ETH) into user ${userId}`);
+      console.log(`[claim-badge] Merged wallet stub (+${stubDonated} INR) into user ${userId}`);
     }
 
+    // ─── Query On-Chain Donations ────────────────────────────────────────────
+    let onChainMatic = 0;
+    try {
+      const { getReadOnlyDonateContract, formatEther } = await import('@/lib/web3/contract');
+      const donateContract = await getReadOnlyDonateContract();
+      const campaignCount = await donateContract.campaignCount();
+      
+      for (let i = 0; i < Number(campaignCount); i++) {
+        const donCount = await donateContract.getDonationCount(i);
+        for (let j = 0; j < Number(donCount); j++) {
+          const [donor, amount] = await donateContract.getDonation(i, j);
+          if (donor.toLowerCase() === recipientLower) {
+            onChainMatic += parseFloat(formatEther(amount));
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('[claim-badge] Error fetching on-chain donations:', err.message);
+    }
+
+    // Use the maximum of what Firebase knows (fiat + crypto) vs actual on-chain MATIC
+    let totalDonatedMatic = Math.max(firebaseMatic, onChainMatic);
 
     const eligibleBadges: string[] = [];
 
     // first_donation: any on-chain donation
-    if (totalDonated > 0 && !ownedBadgeTypes.has('first_donation')) {
+    if (totalDonatedMatic > 0 && !ownedBadgeTypes.has('first_donation')) {
       eligibleBadges.push('first_donation');
     }
 
-    // Tiers awarded by EITHER volunteer hours OR total ETH donated
-    if ((volunteerHours >= 5 || totalDonated >= 0.01) && !ownedBadgeTypes.has('bronze'))
+    // Tiers awarded by EITHER volunteer hours OR total MATIC donated
+    if ((volunteerHours >= 5 || totalDonatedMatic >= 0.01) && !ownedBadgeTypes.has('bronze'))
       eligibleBadges.push('bronze');
-    if ((volunteerHours >= 20 || totalDonated >= 0.05) && !ownedBadgeTypes.has('silver'))
+    if ((volunteerHours >= 20 || totalDonatedMatic >= 0.05) && !ownedBadgeTypes.has('silver'))
       eligibleBadges.push('silver');
-    if ((volunteerHours >= 35 || totalDonated >= 0.1) && !ownedBadgeTypes.has('gold'))
+    if ((volunteerHours >= 35 || totalDonatedMatic >= 0.1) && !ownedBadgeTypes.has('gold'))
       eligibleBadges.push('gold');
-    if ((volunteerHours >= 60 || totalDonated >= 0.5) && !ownedBadgeTypes.has('platinum'))
+    if ((volunteerHours >= 60 || totalDonatedMatic >= 0.5) && !ownedBadgeTypes.has('platinum'))
       eligibleBadges.push('platinum');
-    if ((volunteerHours >= 100 || totalDonated >= 1.0) && !ownedBadgeTypes.has('master'))
+    if ((volunteerHours >= 100 || totalDonatedMatic >= 1.0) && !ownedBadgeTypes.has('master'))
       eligibleBadges.push('master');
 
 
@@ -152,7 +177,7 @@ export async function POST(req: NextRequest) {
     const claimedDetails = [];
 
     for (const badgeType of eligibleBadges) {
-      const reason = `Awarded for contributing ${volunteerHours} hours and donating ${totalDonated} MATIC`;
+      const reason = `Awarded for contributing ${volunteerHours} hours and donating ${totalDonatedMatic.toFixed(2)} MATIC`;
       
       // Upload Metadata to Firebase Storage
       const metadataUri = await uploadMetadataToFirebase(badgeType, recipientAddress, reason);
