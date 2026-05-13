@@ -4,8 +4,9 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getEventById, getEventVolunteers, updateVolunteerStatus, EventVolunteer, deleteEvent, ADMIN_EMAILS, getEventGoodsPledges } from '@/services/eventService';
+import { getEventDonations, DonationRecord } from '@/services/donationService';
 import { CommunityEvent } from '@/types';
-import { ArrowLeft, Users, Download, Calendar, Mail, CheckCircle, Circle, Trash2, Send, Pencil, AlertTriangle, QrCode, Package } from 'lucide-react';
+import { ArrowLeft, Users, Download, Calendar, Mail, CheckCircle, Circle, Trash2, Send, Pencil, AlertTriangle, QrCode, Package, Banknote, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import PromotionModal from '@/components/events/PromotionModal';
 import { SentinelAlert } from '@/types/sentinel';
@@ -24,9 +25,10 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
   const [volunteers, setVolunteers] = useState<EventVolunteer[]>([]);
   const [alerts, setAlerts] = useState<SentinelAlert[]>([]);
   const [goodsPledges, setGoodsPledges] = useState<Awaited<ReturnType<typeof getEventGoodsPledges>>>([]);
+  const [donations, setDonations] = useState<DonationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'volunteers' | 'goods'>('volunteers');
+  const [activeTab, setActiveTab] = useState<'volunteers' | 'goods' | 'donations'>('volunteers');
   const [smsNumber, setSmsNumber] = useState('');
   const [sendingSms, setSendingSms] = useState(false);
 
@@ -38,11 +40,12 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
 
     const loadData = async () => {
       try {
-        const [eventData, volunteerData, alertsData, pledgesData] = await Promise.all([
+        const [eventData, volunteerData, alertsData, pledgesData, donationData] = await Promise.all([
           getEventById(eventId),
           getEventVolunteers(eventId),
           fetch('/api/sentinel').then(r => r.json()).catch(() => []),
-          getEventGoodsPledges(eventId)
+          getEventGoodsPledges(eventId),
+          getEventDonations(eventId),
         ]);
 
         if (eventData?.organizerId !== user.uid && !ADMIN_EMAILS.includes(user.email || '')) {
@@ -55,6 +58,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
         setVolunteers(volunteerData);
         setAlerts(alertsData);
         setGoodsPledges(pledgesData);
+        setDonations(donationData);
       } catch (err) {
         console.error('Failed to load event data:', err);
         toast.error('Could not load event data.');
@@ -192,6 +196,31 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
     link.click();
     document.body.removeChild(link);
     toast.success('Volunteer list exported successfully.');
+  };
+
+  const handleExportDonationsCSV = () => {
+    if (donations.length === 0) { toast.info('No donations to export.'); return; }
+    const headers = ['Receipt ID', 'Donor', 'Email', 'Amount', 'Currency', 'Method', 'Date', 'Recorded By'];
+    const rows = donations.map(d => [
+      d.receiptId,
+      `"${d.userName}"`,
+      d.userEmail,
+      d.amount,
+      d.currency,
+      d.method,
+      d.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A',
+      d.recordedByName || '',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `event_${eventId}_donations.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Donations exported successfully.');
   };
 
   if (loading) {
@@ -429,6 +458,24 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
               ></div>
             </div>
           </div>
+
+          {/* Donations Stats Card */}
+          <div className="premium-glass p-6">
+            <h3 className="font-serif text-lg font-bold mb-4 flex items-center gap-2 text-on-surface">
+              <Banknote size={20} style={{ color: 'var(--color-terracotta)' }} />
+              Donations
+            </h3>
+            <div className="text-3xl font-bold mb-1" style={{ color: 'var(--color-terracotta)' }}>
+              ₹{donations.filter(d => d.currency === 'INR').reduce((s, d) => s + d.amount, 0).toLocaleString('en-IN')}
+            </div>
+            <p className="text-xs text-on-surface-variant mb-3">
+              from {donations.length} donation{donations.length !== 1 ? 's' : ''}
+            </p>
+            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--color-terracotta)' }}>
+              <ShieldCheck size={14} />
+              Immutable audit trail
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Tabbed Roster */}
@@ -465,6 +512,31 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                     <span className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: 'rgba(59,107,74,0.15)', color: 'var(--color-primary-base)' }}>
                       {goodsPledges.length}
                     </span>
+                  </button>
+                )}
+                  <button
+                    onClick={() => setActiveTab('donations')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      activeTab === 'donations'
+                        ? 'bg-surface-bright text-on-surface shadow-sm'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <Banknote size={15} />
+                    Donations
+                    <span className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: 'rgba(194,113,91,0.15)', color: 'var(--color-terracotta)' }}>
+                      {donations.length}
+                    </span>
+                  </button>
+                </div>
+              <div>
+                {activeTab === 'donations' && (
+                  <button
+                    onClick={handleExportDonationsCSV}
+                    className="premium-button-muted text-sm gap-2"
+                  >
+                    <Download size={15} />
+                    Export CSV
                   </button>
                 )}
               </div>
@@ -577,6 +649,69 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                       </div>
                     </div>
                   ))}
+                </div>
+              )
+            )}
+
+            {/* Donations Tab — read-only, no edit/delete */}
+            {activeTab === 'donations' && (
+              donations.length === 0 ? (
+                <div className="p-12 text-center text-on-surface-variant">
+                  <Banknote size={48} className="mx-auto mb-4 opacity-20" />
+                  <p className="font-medium mb-1">No donations recorded yet.</p>
+                  <p className="text-sm">Cash donations can be recorded from the event page (admin/organizer only).</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--glass-border)' }} className="text-sm text-on-surface-variant">
+                        <th className="px-6 py-4 font-medium">Donor</th>
+                        <th className="px-6 py-4 font-medium">Amount</th>
+                        <th className="px-6 py-4 font-medium">Method</th>
+                        <th className="px-6 py-4 font-medium">Receipt ID</th>
+                        <th className="px-6 py-4 font-medium">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {donations.map(don => {
+                        const methodColors: Record<string, { bg: string; text: string }> = {
+                          razorpay: { bg: 'rgba(59,107,74,0.12)', text: 'var(--color-primary-base)' },
+                          crypto:   { bg: 'rgba(29,161,242,0.12)', text: '#1DA1F2' },
+                          cash:     { bg: 'rgba(139,109,46,0.12)', text: 'var(--color-warm-amber)' },
+                        };
+                        const mc = methodColors[don.method] || methodColors.cash;
+                        return (
+                          <tr key={don.id} className="hover:bg-surface-container/30 transition-colors" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-on-surface">{don.userName}</div>
+                              {don.recordedByName && (
+                                <div className="text-xs text-on-surface-variant">Recorded by {don.recordedByName}</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 font-bold" style={{ color: 'var(--color-terracotta)' }}>
+                              {don.currency === 'INR' ? `₹${don.amount.toLocaleString('en-IN')}` : `${don.amount} ${don.currency}`}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="px-2.5 py-1 rounded-full text-xs font-bold capitalize" style={{ background: mc.bg, color: mc.text }}>
+                                {don.method}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-mono text-xs text-on-surface-variant">{don.receiptId}</span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-on-surface-variant">
+                              {don.createdAt?.toDate?.()?.toLocaleDateString() || '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="px-6 py-3 flex items-center gap-2 text-xs text-on-surface-variant" style={{ borderTop: '1px solid var(--glass-border)', background: 'rgba(59,107,74,0.03)' }}>
+                    <ShieldCheck size={13} style={{ color: 'var(--color-primary-base)' }} />
+                    These records are immutable and cannot be edited or deleted through the app.
+                  </div>
                 </div>
               )
             )}

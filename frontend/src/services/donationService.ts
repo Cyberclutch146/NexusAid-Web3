@@ -16,7 +16,7 @@ import {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type DonationMethod = 'razorpay' | 'crypto';
+export type DonationMethod = 'razorpay' | 'crypto' | 'cash';
 export type DonationCurrency = 'INR' | 'ETH' | 'MATIC';
 
 export interface DonationRecord {
@@ -36,6 +36,9 @@ export interface DonationRecord {
   txHash?: string;
   walletAddress?: string;
   chainId?: number;
+  // Cash donation audit trail
+  recordedBy?: string;       // UID of admin/organizer who recorded the cash donation
+  recordedByName?: string;   // Display name for audit clarity
   // Receipt
   receiptId: string;
   createdAt?: Timestamp;

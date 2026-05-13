@@ -411,6 +411,7 @@ export default function EventDetails({ params }: { params: Promise<{ id: string 
             needs={event.needs}
             onChainCampaignId={event.onChainCampaignId ?? null}
             onActionComplete={refreshEvent}
+            organizerId={event.organizerId}
           />
           
           {/* Milestone Escrow UI */}

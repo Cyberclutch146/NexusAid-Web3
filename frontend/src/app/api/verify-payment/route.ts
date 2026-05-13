@@ -1,12 +1,13 @@
 // src/app/api/verify-payment/route.ts
 // Server-side payment verification and donation recording.
-// Handles both Razorpay (with HMAC signature check) and crypto donations.
+// Handles Razorpay (HMAC signature check), crypto, and mock cash donations.
 
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendDonationReceipt } from '@/services/emailService';
 import { FieldValue } from 'firebase-admin/firestore';
+import { ADMIN_EMAILS } from '@/services/eventService';
 
 /** Generates a human-readable receipt ID: NXA-YYYY-XXXXXXXX */
 function generateReceiptId(): string {
@@ -43,7 +44,20 @@ interface CryptoPayload {
   userEmail: string;
 }
 
-type VerifyPayload = RazorpayPayload | CryptoPayload;
+interface CashPayload {
+  method: 'cash';
+  amount: number;
+  eventId: string;
+  eventTitle: string;
+  userId: string;           // donor user ID
+  userName: string;         // donor display name
+  userEmail: string;        // donor email (for receipt)
+  recordedByEmail: string;  // must be an ADMIN_EMAIL or event organizer
+  recordedByUid: string;
+  recordedByName: string;
+}
+
+type VerifyPayload = RazorpayPayload | CryptoPayload | CashPayload;
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
@@ -87,30 +101,24 @@ export async function POST(request: Request) {
         createdAt: FieldValue.serverTimestamp(),
       };
 
-      // Write to events/{eventId}/donations and users/{userId}/donations
       const eventDonRef = adminDb.collection(`events/${body.eventId}/donations`).doc();
       const userDonRef = adminDb.collection(`users/${body.userId}/donations`).doc();
       const eventRef = adminDb.collection('events').doc(body.eventId);
       const userRef = adminDb.collection('users').doc(body.userId);
 
       await adminDb.runTransaction(async (t) => {
-        // Write donation records
         t.set(eventDonRef, payload);
         t.set(userDonRef, { ...payload, eventDonationId: eventDonRef.id });
-
-        // Increment event funds
         t.update(eventRef, {
           'needs.funds.current': FieldValue.increment(body.amount),
           updatedAt: FieldValue.serverTimestamp(),
         });
-
-        // Increment user totalDonated (stored as USD)
         t.update(userRef, {
           totalDonated: FieldValue.increment(body.amount),
         });
       });
 
-      // ── 3. Send receipt email (best-effort, don't block response) ──────────
+      // ── 3. Send receipt email (best-effort) ────────────────────────────────
       sendDonationReceipt({
         to: body.userEmail,
         userName: body.userName,
@@ -124,7 +132,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, receiptId });
 
     } else if (body.method === 'crypto') {
-      // ── Crypto donation recording (no signature check needed — tx is on-chain) ──
+      // ── Crypto donation recording ───────────────────────────────────────────
       const receiptId = generateReceiptId();
       const amountNum = parseFloat(body.amount);
       const currency = body.chainId === 80002 || body.chainId === 137 ? 'MATIC' : 'ETH';
@@ -152,13 +160,11 @@ export async function POST(request: Request) {
       await adminDb.runTransaction(async (t) => {
         t.set(eventDonRef, payload);
         t.set(userDonRef, { ...payload, eventDonationId: eventDonRef.id });
-        // Rough USD conversion for totalDonated display
         t.update(userRef, {
           totalDonated: FieldValue.increment(amountNum * 2500),
         });
       });
 
-      // Send receipt email
       const explorerBase = body.chainId === 80002
         ? 'https://amoy.polygonscan.com/tx'
         : body.chainId === 31337
@@ -177,9 +183,71 @@ export async function POST(request: Request) {
       }).catch((e) => console.error('Receipt email failed:', e));
 
       return NextResponse.json({ success: true, receiptId });
-    }
 
-    return NextResponse.json({ error: 'Invalid method' }, { status: 400 });
+    } else if (body.method === 'cash') {
+      // ── Cash / mock donation — admin/organizer only ─────────────────────────
+      // Server-side gate: caller must be an ADMIN or the event's own organizer
+      if (!ADMIN_EMAILS.includes(body.recordedByEmail)) {
+        const eventSnap = await adminDb.collection('events').doc(body.eventId).get();
+        const organizerId = eventSnap.data()?.organizerId;
+        if (organizerId !== body.recordedByUid) {
+          return NextResponse.json(
+            { error: 'Forbidden: only admins or the event organizer can record cash donations' },
+            { status: 403 }
+          );
+        }
+      }
+
+      const receiptId = generateReceiptId();
+      const reference = `CASH-${Date.now()}`;
+      const payload = {
+        eventId: body.eventId,
+        eventTitle: body.eventTitle,
+        userId: body.userId,
+        userName: body.userName,
+        userEmail: body.userEmail,
+        amount: body.amount,
+        currency: 'INR',
+        method: 'cash',
+        recordedBy: body.recordedByUid,
+        recordedByName: body.recordedByName,
+        reference,
+        receiptId,
+        createdAt: FieldValue.serverTimestamp(),
+      };
+
+      const eventDonRef = adminDb.collection(`events/${body.eventId}/donations`).doc();
+      const userDonRef = adminDb.collection(`users/${body.userId}/donations`).doc();
+      const eventRef = adminDb.collection('events').doc(body.eventId);
+      const userRef = adminDb.collection('users').doc(body.userId);
+
+      await adminDb.runTransaction(async (t) => {
+        t.set(eventDonRef, payload);
+        t.set(userDonRef, { ...payload, eventDonationId: eventDonRef.id });
+        t.update(eventRef, {
+          'needs.funds.current': FieldValue.increment(body.amount),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        t.update(userRef, {
+          totalDonated: FieldValue.increment(body.amount),
+        });
+      });
+
+      sendDonationReceipt({
+        to: body.userEmail,
+        userName: body.userName,
+        eventTitle: body.eventTitle,
+        amount: `₹${body.amount.toLocaleString('en-IN')}`,
+        method: 'Cash (Recorded by Organizer)',
+        reference,
+        receiptId,
+      }).catch((e) => console.error('Cash receipt email failed:', e));
+
+      return NextResponse.json({ success: true, receiptId });
+
+    } else {
+      return NextResponse.json({ error: 'Invalid method' }, { status: 400 });
+    }
 
   } catch (error: any) {
     console.error('verify-payment error:', error);
