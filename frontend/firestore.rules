@@ -15,6 +15,15 @@ service cloud.firestore {
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
 
+      // Pending Donations subcollection
+      // Users can create them. Organizers/Admins can read & update them.
+      match /pendingDonations/{pendingId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update: if request.auth != null;
+        allow delete: if false;
+      }
+
       // Donations subcollection — WRITE-ONCE via Admin SDK only.
       // Client-side writes are blocked; server routes use Admin SDK which bypasses rules.
       match /donations/{donationId} {

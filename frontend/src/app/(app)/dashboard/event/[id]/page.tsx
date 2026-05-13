@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getEventById, getEventVolunteers, updateVolunteerStatus, EventVolunteer, deleteEvent, ADMIN_EMAILS, getEventGoodsPledges, addExpenditureLog, deleteExpenditureLog } from '@/services/eventService';
-import { getEventDonations, DonationRecord } from '@/services/donationService';
+import { getEventDonations, DonationRecord, getPendingDonations, PendingDonation, rejectPendingDonation } from '@/services/donationService';
 import { CommunityEvent, ExpenditureLog } from '@/types';
 import { ArrowLeft, Users, Download, Calendar, Mail, CheckCircle, Circle, Trash2, Send, Pencil, AlertTriangle, QrCode, Package, Banknote, ShieldCheck, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,7 +28,8 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
   const [donations, setDonations] = useState<DonationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'volunteers' | 'goods' | 'donations' | 'expenditures'>('volunteers');
+  const [activeTab, setActiveTab] = useState<'volunteers' | 'goods' | 'donations' | 'expenditures' | 'pending'>('volunteers');
+  const [pendingDonations, setPendingDonations] = useState<PendingDonation[]>([]);
   const [expenditureDesc, setExpenditureDesc] = useState('');
   const [expenditureAmount, setExpenditureAmount] = useState('');
   const [smsNumber, setSmsNumber] = useState('');
@@ -42,12 +43,13 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
 
     const loadData = async () => {
       try {
-        const [eventData, volunteerData, alertsData, pledgesData, donationData] = await Promise.all([
+        const [eventData, volunteerData, alertsData, pledgesData, donationData, pendingData] = await Promise.all([
           getEventById(eventId),
           getEventVolunteers(eventId),
           fetch('/api/sentinel').then(r => r.json()).catch(() => []),
           getEventGoodsPledges(eventId),
           getEventDonations(eventId),
+          getPendingDonations(eventId),
         ]);
 
         if (eventData?.organizerId !== user.uid && !ADMIN_EMAILS.includes(user.email || '')) {
@@ -61,6 +63,7 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
         setAlerts(alertsData);
         setGoodsPledges(pledgesData);
         setDonations(donationData);
+        setPendingDonations(pendingData.filter(p => p.status === 'pending'));
       } catch (err) {
         console.error('Failed to load event data:', err);
         toast.error('Could not load event data.');
@@ -83,6 +86,47 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
     } catch (error) {
       console.error('Failed to update attendance:', error);
       toast.error('Failed to update attendance.');
+    }
+  };
+
+  const handleApprovePending = async (pending: PendingDonation) => {
+    try {
+      const res = await fetch('/api/approve-donation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId,
+          pendingId: pending.id,
+          adminEmail: user?.email,
+          adminUid: user?.uid,
+          adminName: user?.displayName || 'Admin',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      toast.success('Donation approved and receipt sent!');
+      
+      setPendingDonations(prev => prev.filter(p => p.id !== pending.id));
+      
+      const updatedDonations = await getEventDonations(eventId);
+      setDonations(updatedDonations);
+      
+      const updatedEvent = await getEventById(eventId);
+      setEvent(updatedEvent);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to approve donation');
+    }
+  };
+
+  const handleRejectPending = async (pendingId: string) => {
+    if (!confirm('Are you sure you want to reject this claim?')) return;
+    try {
+      await rejectPendingDonation(eventId, pendingId);
+      toast.success('Donation claim rejected');
+      setPendingDonations(prev => prev.filter(p => p.id !== pendingId));
+    } catch (err) {
+      toast.error('Failed to reject donation claim');
     }
   };
 
@@ -539,6 +583,21 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                     {event.needs?.funds?.expenditureLogs?.length || 0}
                   </span>
                 </button>
+                <button
+                  onClick={() => setActiveTab('pending')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'pending'
+                      ? 'bg-surface-bright text-on-surface shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                >
+                  <ShieldCheck size={15} />
+                  Verification
+                  {pendingDonations.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                      {pendingDonations.length}
+                    </span>
+                  )}
+                </button>
               </div>
               <div>
                 {activeTab === 'donations' && (
@@ -852,6 +911,61 @@ export default function OrganizerEventPage({ params }: { params: Promise<{ id: s
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Pending Verifications Tab */}
+            {activeTab === 'pending' && (
+              pendingDonations.length === 0 ? (
+                <div className="p-12 text-center text-on-surface-variant">
+                  <ShieldCheck size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>No pending donations to verify.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--glass-border)' }} className="text-sm text-on-surface-variant">
+                        <th className="px-6 py-4 font-medium">Donor</th>
+                        <th className="px-6 py-4 font-medium">Amount Claimed</th>
+                        <th className="px-6 py-4 font-medium">Reference No.</th>
+                        <th className="px-6 py-4 font-medium text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingDonations.map(pending => (
+                        <tr key={pending.id} className="hover:bg-surface-container/30 transition-colors" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-on-surface">{pending.userName}</div>
+                            <div className="text-xs text-on-surface-variant">{pending.userEmail}</div>
+                          </td>
+                          <td className="px-6 py-4 font-bold" style={{ color: 'var(--color-terracotta)' }}>
+                            ₹{pending.amount.toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-mono text-xs font-semibold px-2 py-1 bg-surface-container rounded">{pending.reference}</span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleApprovePending(pending)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container transition-colors"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectPending(pending.id!)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
             )}
           </div>
         </div>

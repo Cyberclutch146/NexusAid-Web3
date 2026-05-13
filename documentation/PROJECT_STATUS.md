@@ -6,6 +6,7 @@
 > **Next Milestone:** Backend Event Indexing & Escrow UI Completion
 
 ---
+commit log
 
 ## Executive Summary
 

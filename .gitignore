@@ -47,3 +47,24 @@ next-env.d.ts
 
 # firebase
 serviceAccountKey.json
+.firebase/
+firebase-debug.log
+firebase-export-*/
+ui-debug.log
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+*.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Misc build / cache
+dist/
+.eslintcache
+*.log

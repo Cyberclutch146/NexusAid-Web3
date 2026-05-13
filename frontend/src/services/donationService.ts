@@ -44,6 +44,21 @@ export interface DonationRecord {
   createdAt?: Timestamp;
 }
 
+export interface PendingDonation {
+  id?: string;
+  eventId: string;
+  eventTitle: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  amount: number;
+  reference: string;
+  notes?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 // ─── Receipt ID Generator ────────────────────────────────────────────────────
 
 /**
@@ -132,4 +147,36 @@ export const getEventDonations = async (eventId: string): Promise<DonationRecord
   const q = query(ref, orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as DonationRecord));
+};
+
+// ─── Pending Donations ───────────────────────────────────────────────────────
+
+/** Submits a pending donation claim for admin verification */
+export const submitPendingDonation = async (data: Omit<PendingDonation, 'id' | 'createdAt' | 'status' | 'updatedAt'>): Promise<string> => {
+  const pendingRef = collection(db, `events/${data.eventId}/pendingDonations`);
+  const payload: PendingDonation = {
+    ...data,
+    status: 'pending',
+    createdAt: serverTimestamp() as Timestamp,
+    updatedAt: serverTimestamp() as Timestamp,
+  };
+  const docRef = await addDoc(pendingRef, payload as any);
+  return docRef.id;
+};
+
+/** Fetches pending donations for an event */
+export const getPendingDonations = async (eventId: string): Promise<PendingDonation[]> => {
+  const ref = collection(db, `events/${eventId}/pendingDonations`);
+  const q = query(ref, orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PendingDonation));
+};
+
+/** Rejects a pending donation */
+export const rejectPendingDonation = async (eventId: string, pendingId: string): Promise<void> => {
+  // Client-side update for rejection. (Approval needs Admin SDK via API)
+  const docRef = doc(db, `events/${eventId}/pendingDonations`, pendingId);
+  await runTransaction(db, async (t) => {
+    t.update(docRef, { status: 'rejected', updatedAt: serverTimestamp() });
+  });
 };

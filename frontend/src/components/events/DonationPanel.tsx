@@ -4,6 +4,7 @@ import { EventNeeds } from '@/types';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { addVolunteerSignup, getUserPledge, ADMIN_EMAILS } from '@/services/eventService';
+import { submitPendingDonation } from '@/services/donationService';
 import { toast } from 'sonner';
 import { VolunteerModal } from './VolunteerModal';
 import { GoodsPledgeModal } from './GoodsPledgeModal';
@@ -58,6 +59,12 @@ export function DonationPanel({
   const [activeTab, setActiveTab] = useState<'funds' | 'volunteers' | 'goods'>(
     needs.funds ? 'funds' : needs.volunteers ? 'volunteers' : 'goods'
   );
+
+  // Offline donation state (for regular users)
+  const [offlineAmount, setOfflineAmount] = useState(500);
+  const [offlineReference, setOfflineReference] = useState('');
+  const [offlineLoading, setOfflineLoading] = useState(false);
+  const [showOfflineForm, setShowOfflineForm] = useState(false);
 
   // Determine if current user can record cash (admin or organizer)
   const isAdmin = ADMIN_EMAILS.includes(user?.email || '');
@@ -195,6 +202,36 @@ export function DonationPanel({
     }
   };
 
+  const handleOfflineSubmit = async () => {
+    if (!user) { toast.info('Please sign in'); return; }
+    if (!offlineReference.trim()) { toast.error('Enter a reference number'); return; }
+    if (offlineAmount < 1) { toast.error('Enter a valid amount'); return; }
+    
+    setOfflineLoading(true);
+    try {
+      await submitPendingDonation({
+        eventId,
+        eventTitle,
+        userId: user.uid,
+        userName: profile?.displayName || user.displayName || 'Anonymous',
+        userEmail: user.email || '',
+        amount: offlineAmount,
+        reference: offlineReference.trim(),
+      });
+      toast.success('Offline donation submitted for verification!');
+      setShowOfflineForm(false);
+      setOfflineReference('');
+      setOfflineAmount(500);
+      setPledged(true);
+      onActionComplete?.();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to submit offline donation claim.');
+    } finally {
+      setOfflineLoading(false);
+    }
+  };
+
   const handleVolunteerClick = () => {
     if (!user || !profile) {
       toast.info('Please sign in to volunteer');
@@ -300,6 +337,64 @@ export function DonationPanel({
             {onChainCampaignId != null && (
               <CampaignStats campaignId={onChainCampaignId} />
             )}
+
+            {/* ─── Offline Transfer (User Submits Claim) ─── */}
+            <div className="mt-4">
+              {!showOfflineForm ? (
+                <button
+                  onClick={() => setShowOfflineForm(true)}
+                  className="w-full bg-surface-container text-on-surface py-3 rounded-xl font-bold shadow-sm hover:bg-surface-container-high transition-colors text-sm"
+                >
+                  I have already made an offline transfer
+                </button>
+              ) : (
+                <div className="p-4 bg-surface-container rounded-xl text-left border border-outline-variant/30 mt-2">
+                  <h4 className="font-bold text-sm mb-2 text-on-surface">Submit Transfer Details</h4>
+                  <p className="text-xs text-on-surface-variant mb-4">
+                    If you transferred funds directly to the organizer via UPI or Bank Transfer, submit the reference number here for verification.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-on-surface-variant block mb-1">Amount Transferred (₹) *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={offlineAmount}
+                        onChange={(e) => setOfflineAmount(Number(e.target.value))}
+                        className="w-full rounded-xl border border-outline-variant/40 px-3 py-2 text-sm bg-surface outline-none focus:ring-2 focus:ring-primary/40 text-on-surface"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-on-surface-variant block mb-1">Transaction Reference No. *</label>
+                      <input
+                        type="text"
+                        value={offlineReference}
+                        onChange={(e) => setOfflineReference(e.target.value)}
+                        placeholder="e.g. UTR or Receipt No."
+                        className="w-full rounded-xl border border-outline-variant/40 px-3 py-2 text-sm bg-surface outline-none focus:ring-2 focus:ring-primary/40 text-on-surface"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => setShowOfflineForm(false)}
+                        className="flex-1 py-2 rounded-xl text-sm font-semibold border border-outline-variant/50 text-on-surface-variant hover:bg-surface-variant"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleOfflineSubmit}
+                        disabled={offlineLoading || !offlineReference.trim() || offlineAmount < 1}
+                        className="flex-1 bg-primary text-on-primary py-2 rounded-xl text-sm font-bold shadow hover:bg-primary-container hover:text-on-primary-container disabled:opacity-50"
+                      >
+                        {offlineLoading ? 'Submitting...' : 'Submit Proof'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* ─── Admin / Organizer: Record Cash Donation ─── */}
             {canRecordCash && (
