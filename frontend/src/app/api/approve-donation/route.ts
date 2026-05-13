@@ -1,6 +1,6 @@
 // src/app/api/approve-donation/route.ts
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { sendDonationReceipt } from '@/services/emailService';
 import { FieldValue } from 'firebase-admin/firestore';
 import { ADMIN_EMAILS } from '@/services/eventService';
@@ -14,25 +14,34 @@ function generateReceiptId(): string {
 
 export async function POST(request: Request) {
   try {
-    if (!adminDb) {
+    if (!adminDb || !adminAuth) {
       return NextResponse.json(
         { error: 'Firebase Admin not configured.' },
         { status: 503 }
       );
     }
 
-    const body = await request.json();
-    const { eventId, pendingId, adminEmail, adminUid, adminName } = body;
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized: missing or invalid token' }, { status: 401 });
+    }
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const callerUid = decodedToken.uid;
+    const callerEmail = decodedToken.email || '';
 
-    if (!eventId || !pendingId || !adminEmail || !adminUid) {
+    const body = await request.json();
+    const { eventId, pendingId, adminName } = body;
+
+    if (!eventId || !pendingId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Server-side gate: only ADMIN_EMAILS or the event's own organizer can approve
-    if (!ADMIN_EMAILS.includes(adminEmail)) {
+    if (!ADMIN_EMAILS.includes(callerEmail)) {
       const eventSnap = await adminDb.collection('events').doc(eventId).get();
       const organizerId = eventSnap.data()?.organizerId;
-      if (organizerId !== adminUid) {
+      if (organizerId !== callerUid) {
         return NextResponse.json(
           { error: 'Forbidden: only admins or the event organizer can approve donations' },
           { status: 403 }
@@ -64,8 +73,8 @@ export async function POST(request: Request) {
       amount: pendingData.amount,
       currency: 'INR',
       method: 'cash', // Offline transfers represent cash/offline
-      recordedBy: adminUid,
-      recordedByName: adminName || 'Admin',
+      recordedBy: callerUid,
+      recordedByName: adminName || callerEmail,
       reference: pendingData.reference,
       receiptId,
       createdAt: FieldValue.serverTimestamp(),
@@ -96,7 +105,7 @@ export async function POST(request: Request) {
       t.update(pendingRef, {
         status: 'approved',
         updatedAt: FieldValue.serverTimestamp(),
-        approvedBy: adminUid,
+        approvedBy: callerUid,
       });
     });
 
