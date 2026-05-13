@@ -87,6 +87,7 @@ export function EventCard({
             alt={event.title}
             src={event.imageUrl || event.image || '/logo.svg'}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 50vw"
             className="object-cover transition-transform duration-700 will-change-transform group-hover:scale-105"
             style={{ transform: 'translateZ(0)' }}
           />
@@ -139,6 +140,7 @@ export function EventCard({
           src={event.imageUrl || event.image || '/logo.svg'}
           alt={event.title}
           fill
+          sizes="(max-width: 430px) 100vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           className="object-cover transition-transform duration-500 will-change-transform group-hover:scale-105"
           style={{ transform: 'translateZ(0)' }}
         />

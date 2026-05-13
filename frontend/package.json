@@ -14,7 +14,7 @@
     "@use-gesture/react": "^10.3.1",
     "csv-parser": "^3.2.0",
     "ethers": "^6.16.0",
-    "firebase": "^12.12.1",
+    "firebase": "^12.13.0",
     "firebase-admin": "^13.8.0",
     "framer-motion": "^12.38.0",
     "html5-qrcode": "^2.3.8",

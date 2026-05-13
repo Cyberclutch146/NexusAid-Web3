@@ -30,6 +30,13 @@ export default function HomePage() {
         ])
         setEvents(data)
         setAlerts(sentinelData)
+        // Fetch organizer email without blocking the UI — fire-and-forget
+        const feat = data.find((e: any) => e.urgency === 'high' && e.status === 'active') ?? data[0]
+        if (feat?.organizerId) {
+          getUserProfile(feat.organizerId)
+            .then(p => { if (p?.email) setOrganizerEmail(p.email) })
+            .catch(() => {})
+        }
       } catch (err) {
         console.error('Failed to load events:', err)
       } finally {
@@ -41,18 +48,6 @@ export default function HomePage() {
 
   // Pick a featured event: prefer the first 'high' urgency active event, else the newest
   const featured = events.find(e => e.urgency === 'high' && e.status === 'active') ?? events[0] ?? null
-
-  useEffect(() => {
-    if (featured?.organizerId) {
-      getUserProfile(featured.organizerId)
-        .then(profile => {
-          if (profile?.email) {
-            setOrganizerEmail(profile.email)
-          }
-        })
-        .catch(err => console.error("Failed to fetch organizer profile:", err))
-    }
-  }, [featured?.organizerId])
 
   const recommendedEvents = getRecommendedEvents(profile?.skills ?? [], events, 4, profile?.equipment ?? [])
     .map(({ event }) => event)

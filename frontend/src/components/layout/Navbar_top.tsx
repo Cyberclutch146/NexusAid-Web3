@@ -192,7 +192,6 @@ export default function NavbarTop() {
     { label: 'Create', path: '/create' },
     { label: 'Dashboard', path: '/dashboard', exact: true },
     { label: 'Sentinel', path: '/dashboard/sentinel' },
-    { label: 'Leaderboard', path: '/leaderboard' },
   ]
 
   const isLinkActive = (link: typeof navLinks[0]) => {

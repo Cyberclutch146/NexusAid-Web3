@@ -19,27 +19,42 @@ async function refreshSentinelCache(): Promise<SentinelAlert[]> {
           cachedAlerts = alerts;
           cachedAt = Date.now();
         }
-
         return cachedAlerts || alerts;
       })
       .finally(() => {
         refreshPromise = null;
       });
   }
-
   return refreshPromise;
 }
 
 export async function GET() {
   try {
     const cacheAge = Date.now() - cachedAt;
-    const shouldRefresh = !cachedAlerts || cacheAge >= SENTINEL_REFRESH_INTERVAL_MS;
-    const alerts = shouldRefresh ? await refreshSentinelCache() : cachedAlerts;
+    const isStale = !cachedAlerts || cacheAge >= SENTINEL_REFRESH_INTERVAL_MS;
+
+    // ── Stale-While-Revalidate ──────────────────────────────────────────────
+    // If we have cached data (even stale), return it immediately and kick off
+    // a background refresh. Only wait on the very first request (no cache yet).
+    if (isStale && cachedAlerts) {
+      // Fire-and-forget — do not await
+      refreshSentinelCache();
+      return NextResponse.json(cachedAlerts, {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+          'X-Sentinel-Cache': 'stale-while-revalidate',
+          'X-Sentinel-Cache-Time': new Date(cachedAt).toISOString(),
+        },
+      });
+    }
+
+    // First-ever request (no cache) — must wait for real data
+    const alerts = isStale ? await refreshSentinelCache() : cachedAlerts;
 
     return NextResponse.json(alerts, {
       headers: {
         'Cache-Control': 'no-store, max-age=0',
-        'X-Sentinel-Cache': shouldRefresh ? 'refreshed' : 'hit',
+        'X-Sentinel-Cache': isStale ? 'refreshed' : 'hit',
         'X-Sentinel-Cache-Time': cachedAt ? new Date(cachedAt).toISOString() : '',
       },
     });
