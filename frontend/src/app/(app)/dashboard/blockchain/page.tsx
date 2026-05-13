@@ -142,7 +142,7 @@ export default function BlockchainDashboardPage() {
         );
         const network = await Promise.race([networkPromise, timeoutPromise]);
         setNetworkInfo({
-          name: network.chainId === 31337n ? 'Hardhat (Local)' : network.chainId === 80002n ? 'Polygon Amoy' : `Chain ${network.chainId}`,
+          name: network.chainId === BigInt(31337) ? 'Hardhat (Local)' : network.chainId === BigInt(80002) ? 'Polygon Amoy' : `Chain ${network.chainId}`,
           chainId: Number(network.chainId)
         });
       } catch (networkErr: unknown) {

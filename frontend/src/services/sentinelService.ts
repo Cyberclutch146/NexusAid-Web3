@@ -1,6 +1,19 @@
 import { SentinelAlert, SentinelSeverity, SentinelCoordinates, SentinelAlertType } from '@/types/sentinel';
 import Parser from 'rss-parser';
 
+type GdacsRssItem = {
+  alertLevel?: string;
+  country?: string;
+  eventId?: string;
+  eventName?: string;
+  eventType?: string;
+  fromDate?: string;
+  geoPoint?: string;
+  isCurrent?: string;
+  severityText?: string;
+  toDate?: string;
+};
+
 // Helper to determine NOAA severity
 function mapNoaaSeverity(severity: string): SentinelSeverity {
   switch (severity?.toLowerCase()) {
@@ -171,53 +184,59 @@ export async function fetchRedditSocialAlerts(query: string = 'emergency OR cris
 
 export async function fetchGdacsAlerts(): Promise<SentinelAlert[]> {
   try {
-    // GDACS provides real-time alerts for Earthquakes, Tropical Cyclones, Floods, Volcanoes
-    const res = await fetch('https://www.gdacs.org/xml/rss.geojson', {
-      next: { revalidate: 300 }
+    // GDACS publishes GeoRSS feeds updated every few minutes.
+    const parser = new Parser<Record<string, never>, GdacsRssItem>({
+      customFields: {
+        item: [
+          ['gdacs:alertlevel', 'alertLevel'],
+          ['gdacs:country', 'country'],
+          ['gdacs:eventid', 'eventId'],
+          ['gdacs:eventname', 'eventName'],
+          ['gdacs:eventtype', 'eventType'],
+          ['gdacs:fromdate', 'fromDate'],
+          ['gdacs:iscurrent', 'isCurrent'],
+          ['gdacs:severity', 'severityText'],
+          ['gdacs:todate', 'toDate'],
+          ['georss:point', 'geoPoint'],
+        ],
+      },
     });
+    const feed = await parser.parseURL('https://data.gdacs.org/xml/rss_7d.xml');
 
-    if (!res.ok) {
-      console.error('GDACS API returned status:', res.status);
-      return [];
-    }
-
-    const data = await res.json();
     const alerts: SentinelAlert[] = [];
 
-    if (data.features && Array.isArray(data.features)) {
-      for (const feature of data.features) {
-        const props = feature.properties;
-        const geom = feature.geometry;
-        
+    if (feed.items && Array.isArray(feed.items)) {
+      for (const item of feed.items.slice(0, 20)) {
         let coordinates: SentinelCoordinates | undefined;
-        if (geom && geom.type === 'Point') {
+        if (item.geoPoint) {
+          const [lat, lng] = item.geoPoint.split(/\s+/).map(Number);
           coordinates = {
-            lng: geom.coordinates[0],
-            lat: geom.coordinates[1]
+            lat,
+            lng
           };
         }
 
         // Map GDACS alertlevel (Green, Orange, Red) to SentinelSeverity
         let severity: SentinelSeverity = 'Unknown';
-        if (props.alertlevel === 'Red') severity = 'Extreme';
-        else if (props.alertlevel === 'Orange') severity = 'Severe';
-        else if (props.alertlevel === 'Green') severity = 'Minor';
+        if (item.alertLevel === 'Red') severity = 'Extreme';
+        else if (item.alertLevel === 'Orange') severity = 'Severe';
+        else if (item.alertLevel === 'Green') severity = 'Minor';
 
         // GDACS event types: EQ (Earthquake), TC (Tropical Cyclone), FL (Flood), VO (Volcano)
-        const typeStr = props.eventtype || '';
+        const typeStr = item.eventType || '';
         let type: typeof alerts[0]['type'] = 'WEATHER';
         if (typeStr === 'EQ' || typeStr === 'VO') type = 'SEISMIC';
 
         alerts.push({
-          id: `gdacs-${feature.id || props.eventid}`,
+          id: `gdacs-${item.guid || item.eventId || item.link || item.title}`,
           source: 'GDACS',
           type,
           severity,
-          title: props.name || `${props.eventtype} Event`,
-          description: props.description || `Alert level: ${props.alertlevel}`,
-          url: props.url?.report || `https://www.gdacs.org/`,
-          timestamp: props.fromdate || new Date().toISOString(),
-          locationName: props.country || 'Global',
+          title: item.eventName || item.title || `${item.eventType || 'Disaster'} Event`,
+          description: item.contentSnippet || item.content || item.severityText || `Alert level: ${item.alertLevel || 'Unknown'}`,
+          url: item.link || `https://www.gdacs.org/`,
+          timestamp: item.fromDate || item.isoDate || new Date().toISOString(),
+          locationName: item.country || 'Global',
           coordinates
         });
       }
@@ -380,10 +399,10 @@ export async function fetchSachetAlerts(): Promise<SentinelAlert[]> {
       try {
         const [polyRes, xmlRes] = await Promise.all([
           fetch(`https://sachet.ndma.gov.in/cap_public_website/FetchPolygonXMLFile?identifier=${alert.identifier}`, {
-            next: { revalidate: 3600 }
+            cache: 'no-store'
           }).catch(() => null),
           fetch(`https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=${alert.identifier}`, {
-            next: { revalidate: 3600 }
+            cache: 'no-store'
           }).catch(() => null)
         ]);
         

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { SentinelAlert } from '@/types/sentinel';
 import SentinelAlertFeed from '@/components/map/SentinelAlertFeed';
 import { Activity, Map as MapIcon, Loader2, ShieldAlert, Radio, TriangleAlert, Waves, RefreshCw } from 'lucide-react';
@@ -22,33 +22,65 @@ const SentinelMapOverlay = dynamic(
   { ssr: false }
 );
 
+const SENTINEL_CACHE_KEY = 'nexusaid:sentinel:last-known-alerts';
+const SENTINEL_CACHE_TIME_KEY = 'nexusaid:sentinel:last-known-alerts-time';
+const SENTINEL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
 export default function SentinelDashboardPage() {
   const [alerts, setAlerts] = useState<SentinelAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'map' | 'feed'>('map');
   const { resolvedTheme } = useTheme();
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/sentinel');
+      const res = await fetch('/api/sentinel', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setAlerts(data);
+        if (Array.isArray(data)) {
+          setAlerts(data);
+          window.localStorage.setItem(SENTINEL_CACHE_KEY, JSON.stringify(data));
+          window.localStorage.setItem(SENTINEL_CACHE_TIME_KEY, new Date().toISOString());
+        }
+        setLastRefresh(new Date());
       }
     } catch (error) {
       console.error("Failed to fetch Sentinel data", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
   useEffect(() => {
-    fetchAlerts();
+    const cachedLoad = window.setTimeout(() => {
+      const cachedAlerts = window.localStorage.getItem(SENTINEL_CACHE_KEY);
+      const cachedAt = window.localStorage.getItem(SENTINEL_CACHE_TIME_KEY);
+
+      if (!cachedAlerts) return;
+
+      try {
+        const parsedAlerts = JSON.parse(cachedAlerts);
+        if (Array.isArray(parsedAlerts)) {
+          setAlerts(parsedAlerts);
+          setLastRefresh(cachedAt ? new Date(cachedAt) : null);
+        }
+      } catch {
+        window.localStorage.removeItem(SENTINEL_CACHE_KEY);
+        window.localStorage.removeItem(SENTINEL_CACHE_TIME_KEY);
+      }
+    }, 0);
+    const initialFetch = window.setTimeout(fetchAlerts, 0);
     
     // Poll every 5 minutes
-    const interval = setInterval(fetchAlerts, 300000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(fetchAlerts, SENTINEL_REFRESH_INTERVAL_MS);
+    return () => {
+      window.clearTimeout(cachedLoad);
+      window.clearTimeout(initialFetch);
+      clearInterval(interval);
+    };
+  }, [fetchAlerts]);
 
   const tileUrl = resolvedTheme === 'dark' 
     ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -58,17 +90,16 @@ export default function SentinelDashboardPage() {
     const total = alerts.length;
     const critical = alerts.filter((alert) => alert.severity === 'Extreme' || alert.severity === 'Severe').length;
     const weather = alerts.filter((alert) => alert.type === 'WEATHER').length;
-    const latestTimestamp = alerts[0]?.timestamp;
 
     return {
       total,
       critical,
       weather,
-      latestUpdate: latestTimestamp
-        ? new Date(latestTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      latestUpdate: lastRefresh
+        ? lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : 'Waiting',
     };
-  }, [alerts]);
+  }, [alerts, lastRefresh]);
 
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-5 md:gap-6 h-[calc(100vh-120px)] md:h-[calc(100vh-140px)] min-h-[640px] md:min-h-[720px] w-full">
