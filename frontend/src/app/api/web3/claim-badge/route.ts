@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userData = userSnap.data();
-    const volunteerHours = userData?.volunteerHours || 0;
+    const volunteerHours = parseFloat(userData?.volunteerHours) || 0;
     const existingBadges: any[] = userData?.badges || [];
     const ownedBadgeTypes = new Set(existingBadges.map((b: any) => b.badgeType));
 
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     const claimedDetails = [];
 
     for (const badgeType of eligibleBadges) {
-      const reason = `Awarded for contributing ${volunteerHours} hours and donating $${totalDonated}`;
+      const reason = `Awarded for contributing ${volunteerHours} hours and donating ${totalDonated} MATIC`;
       
       // Upload Metadata to Firebase Storage
       const metadataUri = await uploadMetadataToFirebase(badgeType, recipientAddress, reason);

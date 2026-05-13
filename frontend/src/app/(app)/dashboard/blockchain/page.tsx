@@ -513,11 +513,11 @@ export default function BlockchainDashboardPage() {
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { emoji: '🥉', label: 'Bronze',   color: '#cd7f32', desc: '1st donation or 5 hours' },
-              { emoji: '🥈', label: 'Silver',   color: '#9ca3af', desc: '3 campaigns or 20 hours' },
-              { emoji: '🥇', label: 'Gold',     color: '#d4a800', desc: '7 campaigns or 35 hours' },
-              { emoji: '💠', label: 'Platinum', color: '#6db3b8', desc: '15 campaigns or 60 hours' },
-              { emoji: '⚡', label: 'Master',   color: '#9b59b6', desc: '30 campaigns or 100 hours' },
+              { emoji: '🥉', label: 'Bronze',   color: '#cd7f32', desc: '0.01 MATIC or 5 hours' },
+              { emoji: '🥈', label: 'Silver',   color: '#9ca3af', desc: '0.05 MATIC or 20 hours' },
+              { emoji: '🥇', label: 'Gold',     color: '#d4a800', desc: '0.1 MATIC or 35 hours' },
+              { emoji: '💠', label: 'Platinum', color: '#6db3b8', desc: '0.5 MATIC or 60 hours' },
+              { emoji: '⚡', label: 'Master',   color: '#9b59b6', desc: '1.0 MATIC or 100 hours' },
               { emoji: '💎', label: 'Diamond',  color: '#0ea5e9', desc: 'Exceptional service' },
             ].map(({ emoji, label, color, desc }) => (
               <div

@@ -11,11 +11,11 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  *         for volunteers, donors, and organizers.
  *
  * Badge Tier Hierarchy:
- *   bronze    — First contribution milestone (1 campaign / 5 volunteer hours)
- *   silver    — Growing contributor (3 campaigns / 20 hours)
- *   gold      — Established contributor (7 campaigns / 35 hours)
- *   platinum  — Dedicated contributor (15 campaigns / 60 hours)
- *   master    — Elite contributor (30 campaigns / 100 hours)
+ *   bronze    — First contribution milestone (0.01 MATIC / 5 volunteer hours)
+ *   silver    — Growing contributor (0.05 MATIC / 20 hours)
+ *   gold      — Established contributor (0.1 MATIC / 35 hours)
+ *   platinum  — Dedicated contributor (0.5 MATIC / 60 hours)
+ *   master    — Elite contributor (1.0 MATIC / 100 hours)
  *   diamond   — Exceptional / manually awarded by admin
  */
 contract NexusReputation is ERC721URIStorage {
