@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     // await adminAuth.verifyIdToken(token);
 
     const eventRef = adminDb.collection("events").doc(eventId);
-    const volunteerRef = eventRef.collection("volunteers").doc(); // auto-ID
+    const volunteerRef = eventRef.collection("volunteers").doc(userId); // Use userId to enforce uniqueness
     const userRegistrationRef = adminDb.collection("users").doc(userId).collection("registrations").doc(eventId);
 
     // Execute atomic transaction for the volunteer signup
@@ -37,6 +37,12 @@ export async function POST(req: NextRequest) {
       
       if (!eventSnap.exists) {
         throw new Error("Event not found");
+      }
+
+      // Check if user is already registered for this event
+      const volunteerSnap = await transaction.get(volunteerRef);
+      if (volunteerSnap.exists) {
+        throw new Error("Already registered for this event");
       }
 
       const eventData = eventSnap.data();
