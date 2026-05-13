@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getReadOnlyReputationContract, BADGE_TIERS, BadgeTierConfig } from '@/lib/web3/reputationContract';
+import { auth } from '@/lib/firebase';
 
 interface Badge {
   tokenId: number;
@@ -25,6 +26,7 @@ const TIER_ORDER = ['diamond', 'master', 'platinum', 'gold', 'silver', 'bronze',
 export function BadgeDisplay({ walletAddress, totalDonated = 0, compact = false }: BadgeDisplayProps) {
   const [onChainBadges, setOnChainBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Calculate earned badges based on donation history
@@ -135,6 +137,41 @@ export function BadgeDisplay({ walletAddress, totalDonated = 0, compact = false 
 
     return combined;
   }, [onChainBadges, earnedBadges]);
+
+  const hasUnclaimedBadges = useMemo(() => {
+    const onChainTypes = new Set(onChainBadges.map(b => b.badgeType));
+    return earnedBadges.some(b => !onChainTypes.has(b.badgeType));
+  }, [onChainBadges, earnedBadges]);
+
+  const handleClaimBadges = async () => {
+    if (!auth.currentUser) {
+      alert("Please sign in first");
+      return;
+    }
+    try {
+      setClaiming(true);
+      setError(null);
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/badges/claim', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to claim badges');
+      
+      alert(data.message || 'Badges claimed successfully!');
+      // Hard reload to refresh on-chain state
+      window.location.reload();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+      alert(`Error claiming badges: ${err.message}`);
+    } finally {
+      setClaiming(false);
+    }
+  };
 
   // Compact mode: just show emoji row
   if (compact) {
@@ -264,6 +301,25 @@ export function BadgeDisplay({ walletAddress, totalDonated = 0, compact = false 
             ))}
           </div>
         </div>
+      )}
+
+      {/* Claim Button */}
+      {hasUnclaimedBadges && !compact && (
+        <button
+          onClick={handleClaimBadges}
+          disabled={claiming || !walletAddress}
+          className={`w-full mt-4 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all duration-300 ${
+            claiming || !walletAddress
+              ? 'bg-surface-variant text-on-surface-variant/50 cursor-not-allowed'
+              : 'bg-primary text-on-primary hover:opacity-90 active:scale-[0.98]'
+          }`}
+        >
+          {claiming ? (
+            <><span className="animate-spin h-4 w-4 border-2 border-on-primary border-t-transparent rounded-full" /> Minting to Blockchain...</>
+          ) : (
+            <><span className="material-symbols-outlined text-lg">workspace_premium</span> Claim Earned Badges On-Chain</>
+          )}
+        </button>
       )}
     </div>
   );
