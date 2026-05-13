@@ -828,13 +828,16 @@ export default function ProfilePage() {
             )}
           </div>
           
-          {(address || profile?.walletAddress) ? (
-            <BadgeDisplay walletAddress={(address || profile?.walletAddress) as string} />
+          {(address || profile?.walletAddress || profile?.totalDonated > 0) ? (
+            <BadgeDisplay 
+              walletAddress={(address || profile?.walletAddress) as string} 
+              totalDonated={profile.totalDonated || 0} 
+            />
           ) : (
             <div className="flex flex-col items-center justify-center text-center py-10 border border-glass border-dashed rounded-[20px]">
               <span className="material-symbols-outlined text-[48px] text-on-surface-variant/20 mb-3">military_tech</span>
               <p className="text-sm font-medium text-on-surface-variant">
-                Connect your wallet to view your reputation badges
+                Donate or connect your wallet to earn reputation badges
               </p>
             </div>
           )}

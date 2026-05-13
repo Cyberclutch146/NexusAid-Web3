@@ -11,23 +11,53 @@ interface Badge {
   badgeType: string;
   mintedAt: number;
   tier: BadgeTierConfig;
+  isOffChain?: boolean;
 }
 
 interface BadgeDisplayProps {
-  walletAddress: string;
+  walletAddress?: string;
+  totalDonated?: number;
   compact?: boolean; // show only emojis, no labels
 }
 
 const TIER_ORDER = ['diamond', 'master', 'platinum', 'gold', 'silver', 'bronze', 'organizer', 'first_donation'];
 
-export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayProps) {
-  const [badges, setBadges] = useState<Badge[]>([]);
+export function BadgeDisplay({ walletAddress, totalDonated = 0, compact = false }: BadgeDisplayProps) {
+  const [onChainBadges, setOnChainBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Calculate earned badges based on donation history
+  const earnedBadges = useMemo(() => {
+    const earned: Badge[] = [];
+    let fakeId = -1;
+
+    const addBadge = (type: string) => {
+      earned.push({
+        tokenId: fakeId--,
+        badgeType: type,
+        mintedAt: Date.now(),
+        tier: BADGE_TIERS[type],
+        isOffChain: true,
+      });
+    };
+
+    if (totalDonated > 0) addBadge('first_donation');
+    if (totalDonated >= 100) addBadge('bronze');
+    if (totalDonated >= 500) addBadge('silver');
+    if (totalDonated >= 1000) addBadge('gold');
+    if (totalDonated >= 5000) addBadge('platinum');
+    if (totalDonated >= 10000) addBadge('master');
+
+    return earned;
+  }, [totalDonated]);
+
   useEffect(() => {
     const load = async () => {
-      if (!walletAddress) return;
+      if (!walletAddress) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         const contract = await getReadOnlyReputationContract();
@@ -72,7 +102,7 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
           return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
         });
 
-        setBadges(results);
+        setOnChainBadges(results);
       } catch (err: any) {
         console.error('BadgeDisplay error:', err);
         setError(err.message);
@@ -83,6 +113,28 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
 
     load();
   }, [walletAddress]);
+
+  // Combine on-chain and off-chain badges
+  // Only show an off-chain badge if the user doesn't already have the on-chain equivalent
+  const badges = useMemo(() => {
+    const combined = [...onChainBadges];
+    const onChainTypes = new Set(onChainBadges.map(b => b.badgeType));
+
+    for (const earned of earnedBadges) {
+      if (!onChainTypes.has(earned.badgeType)) {
+        combined.push(earned);
+      }
+    }
+
+    // Sort by tier priority
+    combined.sort((a, b) => {
+      const ai = TIER_ORDER.indexOf(a.badgeType);
+      const bi = TIER_ORDER.indexOf(b.badgeType);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    return combined;
+  }, [onChainBadges, earnedBadges]);
 
   // Compact mode: just show emoji row
   if (compact) {
@@ -113,7 +165,7 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
     );
   }
 
-  if (error) {
+  if (error && onChainBadges.length === 0 && earnedBadges.length === 0) {
     return (
       <div className="text-xs text-red-400 py-2">
         Failed to load badges. Contract may not be deployed yet.
@@ -146,7 +198,7 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
         className="rounded-2xl p-4 relative overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${highestBadge.tier.bg}, rgba(0,0,0,0.0))`,
-          border: `1.5px solid ${highestBadge.tier.border}`,
+          border: `1.5px ${highestBadge.isOffChain ? 'dashed' : 'solid'} ${highestBadge.tier.border}`,
         }}
       >
         <div
@@ -166,18 +218,20 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
         </div>
         <div className="flex items-center justify-between mt-3 relative z-10">
           <span className="text-[10px] font-mono text-on-surface-variant">
-            Token #{highestBadge.tokenId} · Soulbound
+            {highestBadge.isOffChain ? 'Earned (Claimable on-chain)' : `Token #${highestBadge.tokenId} · Soulbound`}
           </span>
-          <a
-            href={`https://amoy.polygonscan.com/address/${process.env.NEXT_PUBLIC_REPUTATION_CONTRACT}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] hover:opacity-80 transition-opacity flex items-center gap-0.5"
-            style={{ color: highestBadge.tier.color }}
-          >
-            View on-chain
-            <span className="material-symbols-outlined text-[10px]">open_in_new</span>
-          </a>
+          {!highestBadge.isOffChain && (
+            <a
+              href={`https://amoy.polygonscan.com/address/${process.env.NEXT_PUBLIC_REPUTATION_CONTRACT}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] hover:opacity-80 transition-opacity flex items-center gap-0.5"
+              style={{ color: highestBadge.tier.color }}
+            >
+              View on-chain
+              <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -194,7 +248,7 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
                 className="rounded-xl px-3 py-2.5 flex items-center gap-2 transition-transform duration-200 hover:-translate-y-0.5"
                 style={{
                   background: badge.tier.bg,
-                  border: `1px solid ${badge.tier.border}`,
+                  border: `1px ${badge.isOffChain ? 'dashed' : 'solid'} ${badge.tier.border}`,
                 }}
               >
                 <span className="text-xl flex-shrink-0">{badge.tier.emoji}</span>
@@ -202,8 +256,8 @@ export function BadgeDisplay({ walletAddress, compact = false }: BadgeDisplayPro
                   <p className="text-xs font-bold truncate" style={{ color: badge.tier.color }}>
                     {badge.tier.label}
                   </p>
-                  <p className="text-[10px] text-on-surface-variant">
-                    #{badge.tokenId}
+                  <p className="text-[10px] text-on-surface-variant truncate">
+                    {badge.isOffChain ? 'Earned' : `#${badge.tokenId}`}
                   </p>
                 </div>
               </div>
