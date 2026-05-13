@@ -344,22 +344,42 @@ export async function fetchNasaEonetAlerts(): Promise<SentinelAlert[]> {
 
 // Common Indian locations for news geocoding fallback
 const INDIAN_CITY_COORDS: Record<string, SentinelCoordinates> = {
+  // Metros
   'Mumbai': { lat: 19.0760, lng: 72.8777 },
   'Delhi': { lat: 28.6139, lng: 77.2090 },
   'Bengaluru': { lat: 12.9716, lng: 77.5946 },
   'Hyderabad': { lat: 17.3850, lng: 78.4867 },
   'Chennai': { lat: 13.0827, lng: 80.2707 },
   'Kolkata': { lat: 22.5726, lng: 88.3639 },
+  // High-Risk States
   'Odisha': { lat: 20.9517, lng: 85.0985 },
   'Assam': { lat: 26.2006, lng: 92.9376 },
   'Gujarat': { lat: 22.2587, lng: 71.1924 },
   'Kerala': { lat: 10.8505, lng: 76.2711 },
-  'Cuttack': { lat: 20.4625, lng: 85.8830 },
-  'Ganjam': { lat: 19.3870, lng: 84.8870 },
   'Andhra Pradesh': { lat: 15.9129, lng: 79.7400 },
   'Bihar': { lat: 25.0961, lng: 85.3131 },
   'Rajasthan': { lat: 27.0238, lng: 74.2179 },
   'West Bengal': { lat: 22.9868, lng: 87.8550 },
+  'Himachal Pradesh': { lat: 31.1048, lng: 77.1666 },
+  'Uttarakhand': { lat: 30.0668, lng: 79.0193 },
+  'Sikkim': { lat: 27.5330, lng: 88.5122 },
+  'Manipur': { lat: 24.6637, lng: 93.9063 },
+  'Tripura': { lat: 23.9408, lng: 91.9882 },
+  'Meghalaya': { lat: 25.4670, lng: 91.3662 },
+  'Jammu': { lat: 33.7782, lng: 76.5762 },
+  'Kashmir': { lat: 33.7782, lng: 76.5762 },
+  'Uttar Pradesh': { lat: 26.8467, lng: 80.9462 },
+  'Madhya Pradesh': { lat: 22.9734, lng: 78.6569 },
+  'Maharashtra': { lat: 19.7515, lng: 75.7139 },
+  'Tamil Nadu': { lat: 11.1271, lng: 78.6569 },
+  // Specific Cities/Districts prone to localized events
+  'Cuttack': { lat: 20.4625, lng: 85.8830 },
+  'Ganjam': { lat: 19.3870, lng: 84.8870 },
+  'Wayanad': { lat: 11.6854, lng: 76.1320 }, 
+  'Darjeeling': { lat: 27.0360, lng: 88.2627 },
+  'Shimla': { lat: 31.1048, lng: 77.1666 },
+  'Manali': { lat: 32.2396, lng: 77.1887 },
+  'Kedarnath': { lat: 30.7352, lng: 79.0669 },
 };
 
 export async function fetchSachetAlerts(): Promise<SentinelAlert[]> {
@@ -476,39 +496,61 @@ export async function fetchSachetAlerts(): Promise<SentinelAlert[]> {
 export async function fetchIndiaNews(): Promise<SentinelAlert[]> {
   try {
     const parser = new Parser();
-    const query = encodeURIComponent('disaster OR flood OR cyclone OR earthquake India');
-    const feed = await parser.parseURL(`https://news.google.com/rss/search?q=${query}&hl=en-IN&gl=IN&ceid=IN:en`);
     
+    // Two queries to broaden coverage: one for pure disasters, one for rescue ops/authorities
+    const queries = [
+      'disaster OR flood OR cyclone OR earthquake OR landslide OR "heat wave" India',
+      '"NDRF" OR "SDRF" OR "rescue operations" OR "evacuation" India'
+    ];
+
+    const feedPromises = queries.map(q => {
+      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-IN&gl=IN&ceid=IN:en`;
+      return parser.parseURL(url).catch(e => {
+        console.error(`Error parsing Google News for query "${q}":`, e);
+        return { items: [] };
+      });
+    });
+
+    const feeds = await Promise.all(feedPromises);
     const alerts: SentinelAlert[] = [];
     
-    if (feed.items && Array.isArray(feed.items)) {
-      for (const item of feed.items.slice(0, 8)) {
-        let coordinates: SentinelCoordinates | undefined;
-        let locationName = 'India';
+    // Track seen URLs to deduplicate across queries
+    const seenUrls = new Set<string>();
 
-        // Try to find a specific location in the title for a pin
-        for (const city in INDIAN_CITY_COORDS) {
-          if (item.title?.includes(city)) {
-            coordinates = INDIAN_CITY_COORDS[city];
-            locationName = city;
-            break;
+    feeds.forEach((feed) => {
+      if (feed.items && Array.isArray(feed.items)) {
+        // Take top 5 from each query
+        for (const item of feed.items.slice(0, 5)) {
+          if (!item.link || seenUrls.has(item.link)) continue;
+          seenUrls.add(item.link);
+
+          let coordinates: SentinelCoordinates | undefined;
+          let locationName = 'India';
+
+          // Try to find a specific location in the title for a pin
+          for (const city in INDIAN_CITY_COORDS) {
+            if (item.title?.includes(city)) {
+              coordinates = INDIAN_CITY_COORDS[city];
+              locationName = city;
+              break;
+            }
           }
-        }
 
-        alerts.push({
-          id: `in-news-${item.guid || Math.random().toString(36).substring(7)}`,
-          source: 'India News',
-          type: 'NEWS',
-          severity: 'Unknown',
-          title: item.title || 'India Situation Report',
-          description: item.contentSnippet || 'Local disaster news update.',
-          url: item.link || 'https://news.google.com/',
-          timestamp: item.isoDate || new Date().toISOString(),
-          locationName,
-          coordinates
-        });
+          alerts.push({
+            id: `in-news-${item.guid || Math.random().toString(36).substring(7)}`,
+            source: 'India News',
+            type: 'NEWS',
+            severity: 'Unknown',
+            title: item.title || 'India Situation Report',
+            description: item.contentSnippet || 'Local disaster news update.',
+            url: item.link || 'https://news.google.com/',
+            timestamp: item.isoDate || new Date().toISOString(),
+            locationName,
+            coordinates
+          });
+        }
       }
-    }
+    });
 
     return alerts;
   } catch (error) {
