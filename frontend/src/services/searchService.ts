@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
 interface SearchableEvent {
@@ -16,6 +17,30 @@ interface SearchableEvent {
 
 // ─── Fetch all events for search ────────────────────────
 async function fetchSearchableEvents(): Promise<SearchableEvent[]> {
+  // If on server and adminDb is available, use it to bypass security rules
+  if (typeof window === 'undefined' && adminDb) {
+    try {
+      const snapshot = await adminDb.collection("events").orderBy("createdAt", "desc").get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title || "",
+          description: data.description || "",
+          category: data.category || "",
+          location: data.location || "",
+          urgency: data.urgency || "normal",
+          volunteersNeeded: data.needs?.volunteers?.goal,
+          goalAmount: data.needs?.funds?.goal,
+          donatedAmount: data.needs?.funds?.current,
+        };
+      });
+    } catch (error) {
+      console.warn("Admin SDK fetch failed, falling back to client SDK:", error);
+    }
+  }
+
+  // Fallback to client SDK (or if on client side)
   const eventsRef = collection(db, "events");
   const snapshot = await getDocs(query(eventsRef, orderBy("createdAt", "desc")));
   

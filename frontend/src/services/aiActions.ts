@@ -1,6 +1,8 @@
 import { db } from "@/lib/firebase";
+import { adminDb } from "@/lib/firebase-admin";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { addVolunteerSignup } from "@/services/eventService";
+import { addVolunteerSignupServer } from "@/services/eventServiceServer";
 
 // ─── Types ──────────────────────────────────────────────
 interface ActionResult {
@@ -121,6 +123,29 @@ export const AI_FUNCTION_DECLARATIONS = [
 
 // ─── Helper: Fetch all events from Firestore ────────────
 async function fetchAllEvents(): Promise<EventDoc[]> {
+  // Use admin SDK on server to bypass security rules
+  if (typeof window === 'undefined' && adminDb) {
+    try {
+      const snapshot = await adminDb.collection("events").orderBy("createdAt", "desc").get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title || "",
+          description: data.description || "",
+          category: data.category || "",
+          location: data.location || "",
+          organizer: data.organizer || "",
+          urgency: data.urgency || "normal",
+          eventDate: data.eventDate,
+          needs: data.needs,
+        };
+      });
+    } catch (error) {
+      console.warn("Admin SDK fetchAllEvents failed, falling back to client SDK:", error);
+    }
+  }
+
   const snapshot = await getDocs(
     query(collection(db, "events"), orderBy("createdAt", "desc"))
   );
@@ -396,7 +421,7 @@ export async function handleConfirmSignup(
     }
 
     const ticketId = Math.random().toString(36).substring(2, 12).toUpperCase();
-    await addVolunteerSignup(resolvedId, userId, userName, userEmail, ticketId);
+    await addVolunteerSignupServer(resolvedId, userId, userName, userEmail, ticketId);
 
     // Send confirmation email (non-blocking)
     fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/confirm-registration`, {
