@@ -2,7 +2,7 @@
 
 > **Vision:** Build the world's most transparent, accountable, and technologically advanced decentralized disaster relief and crowdfunding platform — where every cent is traceable, every milestone is verifiable, and every contributor's impact is permanently recorded on-chain.
 
-> **Last Updated:** May 9, 2026
+> **Last Updated:** May 13, 2026
 
 ---
 
@@ -22,6 +22,9 @@ These features form the core platform and are already live on the local developm
 | # | Feature | Status | Description |
 |---|---|---|---|
 | 1 | **Core Smart Contracts** | ✅ Done | `NexusDonate`, `NexusEscrow`, and `NexusReputation` deployed on local Hardhat node. Campaign creation, direct donations, milestone-gated escrow, and Soulbound Token (SBT) badge minting are all functional. |
+| 1b | **Unified Donation Tracking** | ✅ Done | `donationService.ts` records Razorpay (fiat), crypto (ETH/MATIC), and cash donations into Firestore with dual-write to event and user subcollections, atomic fund counter updates, receipt ID generation, and offline donation verification via admin approval API. |
+| 1c | **Backend Event Indexer** | ✅ Done | Express server with listeners for `DonationMade`, `CampaignCreated`, `FundsWithdrawn`, `BadgeMinted`, `MilestoneApproved`, and `RefundIssued` events — all synced to Firestore in real-time. |
+| 1d | **IPFS Storage (Pinata)** | ✅ Done | Pinata upload helper, server-side API route (`/api/ipfs/upload`), and `useIPFSUpload` React hook for decentralized file storage. |
 | 2 | **Monorepo Architecture** | ✅ Done | Codebase restructured into `frontend/`, `backend/`, `contracts/`, and `documentation/` workspaces with npm workspace management from the root `package.json`. |
 | 3 | **MetaMask Wallet Integration** | ✅ Done | Full `useWallet` hook with auto-detection, connection, EIP-191 signature-based wallet linking, account change listeners, and automatic `chainChanged` page reload. |
 | 4 | **Dynamic Network Switching** | ✅ Done | Frontend auto-detects `localhost` vs production and switches MetaMask to the correct network (Hardhat 31337 or Amoy 80002). `BrowserProvider` initialized with `'any'` to prevent Ethers.js v6 `NETWORK_ERROR`. |
@@ -135,7 +138,8 @@ graph TD
 | Quarter | Milestone | Key Deliverables |
 |---|---|---|
 | **Q2 2026** | v0.2.0 — Foundation ✅ | Monorepo, 3 contracts, wallet integration, SBTs, Blockchain Hub |
-| **Q3 2026** | v0.3.0 — Hardening | Backend indexing, contract tests, Amoy deployment, escrow UI |
+| **Q2 2026** | v0.2.1 — Donations ✅ | Unified donation tracking, payment verification, backend indexer, IPFS uploads, offline donation approval, Firestore security rules |
+| **Q3 2026** | v0.3.0 — Hardening | Contract tests, Amoy deployment, escrow UI end-to-end, email receipts |
 | **Q4 2026** | v0.4.0 — UX Leap | Account Abstraction, gasless tx, IPFS storage, The Graph |
 | **Q1 2027** | v0.5.0 — Governance | DAO launch, quadratic funding, DID integration, ZK-KYC |
 | **Q2 2027** | v0.6.0 — Finance | Yield on escrow, cross-chain, oracle-triggered relief |

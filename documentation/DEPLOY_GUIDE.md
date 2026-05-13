@@ -2,6 +2,8 @@
 
 > **No blockchain experience needed.** This guide assumes you've never touched Web3, MetaMask, or Solidity before. Follow every step exactly and you'll have a fully working local blockchain + NexusAid frontend running on your machine in under 15 minutes.
 
+> **Last Updated:** May 13, 2026
+
 Good luck deploying!
 
 ---
@@ -311,12 +313,19 @@ npm run dev:frontend
 You'll see:
 
 ```
-▲ Next.js 16.2.4 (Turbopack)
+▲ Next.js 16.2.4
 - Local:    http://localhost:3000
 - Network:  http://192.168.x.x:3000
 
 ✓ Ready in 800ms
 ```
+
+> 💡 **Tip:** The backend event indexer (port 4000) is also needed for full functionality. In a separate terminal, run:
+> ```bash
+> cd NexusAid-Web3
+> npm run dev:backend
+> ```
+> This listens for blockchain events and syncs them to Firestore.
 
 🎉 **Open your browser and go to http://localhost:3000**
 
@@ -356,9 +365,9 @@ We've created scripts to start everything with a single command. Open **one** te
 
 1. **Start Everything:**
    ```bash
-   npm run dev:all
+   npm start
    ```
-   *This starts the node, waits for it to be ready, deploys your contracts, starts the backend, and starts the frontend all in one window.*
+   *This starts the blockchain node, waits for it to be ready, deploys your contracts, syncs environment variables, starts the backend event indexer, and starts the frontend — all in one window.*
 
 2. **If you restarted your PC:**
    After running `dev:all`, open a second terminal and run:

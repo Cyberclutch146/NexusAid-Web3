@@ -91,12 +91,17 @@ NexusAid-Web3/
 │   │   │   │   ├── leaderboard/       # Community leaderboard
 │   │   │   │   └── about/             # About page
 │   │   │   ├── (marketing)/           # Public marketing pages
+│   │   │   ├── offline/               # PWA offline fallback page
 │   │   │   └── api/                   # Next.js API routes (serverless)
 │   │   │       ├── web3/              # Blockchain API endpoints
 │   │   │       │   ├── claim-badge/   # Auto-evaluate & mint SBTs
 │   │   │       │   ├── link-wallet/   # EIP-191 wallet verification
 │   │   │       │   ├── mint-badge/    # Direct badge minting
 │   │   │       │   └── milestones/    # Escrow milestone management
+│   │   │       ├── approve-donation/  # Admin donation approval workflow
+│   │   │       ├── verify-payment/    # Razorpay payment verification
+│   │   │       ├── ipfs/upload/       # Pinata IPFS file upload
+│   │   │       ├── user/profile/      # User profile management
 │   │   │       ├── events/            # CRUD for events
 │   │   │       ├── auth/              # Authentication helpers
 │   │   │       ├── chat/              # Real-time chat
@@ -110,24 +115,42 @@ NexusAid-Web3/
 │   │   │       └── create-payment-order/ # Razorpay payment orders
 │   │   ├── components/
 │   │   │   ├── web3/                  # Blockchain UI components
+│   │   │   │   ├── AddressBadge.tsx   # Truncated wallet address display
 │   │   │   │   ├── BadgeDisplay.tsx   # SBT badge gallery
 │   │   │   │   ├── DonateWithCrypto.tsx # Crypto donation flow
 │   │   │   │   └── MilestoneTracker.tsx # Escrow milestone UI
 │   │   │   ├── events/                # Event cards, donation panels
+│   │   │   │   ├── CampaignStats.tsx  # On-chain campaign metrics
+│   │   │   │   ├── DonationPanel.tsx  # Unified fiat + crypto + cash donations
+│   │   │   │   ├── EventCard.tsx      # Event display cards
+│   │   │   │   ├── GoodsPledgeModal.tsx # In-kind donation pledges
+│   │   │   │   ├── PromotionModal.tsx # Event promotion campaigns
+│   │   │   │   ├── ScannerView.tsx    # QR code scanning
+│   │   │   │   ├── SkillMatchBanner.tsx # Volunteer skill matching
+│   │   │   │   ├── VolunteerLeaderboard.tsx # Community rankings
+│   │   │   │   └── VolunteerModal.tsx # Volunteer registration
 │   │   │   ├── layout/                # Navbar, sidebar, footer
 │   │   │   ├── ui/                    # Reusable design system components
 │   │   │   ├── ai/                    # AI-powered components
 │   │   │   └── map/                   # Geospatial map components
 │   │   ├── hooks/
-│   │   │   └── useWallet.ts           # MetaMask connection hook
+│   │   │   ├── useWallet.ts           # MetaMask connection hook
+│   │   │   ├── useCreateCampaign.ts   # On-chain campaign creation hook
+│   │   │   └── useIPFSUpload.ts       # Pinata IPFS upload hook
 │   │   ├── lib/
 │   │   │   ├── web3/
 │   │   │   │   ├── contract.ts        # NexusDonate contract bindings
 │   │   │   │   ├── escrowContract.ts  # NexusEscrow contract bindings
 │   │   │   │   └── reputationContract.ts # NexusReputation bindings
+│   │   │   ├── ipfs/
+│   │   │   │   └── pinata.ts          # Pinata IPFS upload helper
+│   │   │   ├── payments/
+│   │   │   │   ├── razorpay.ts        # Razorpay client config
+│   │   │   │   └── openai.ts          # OpenAI client config
 │   │   │   ├── firebase.ts            # Client-side Firebase init
 │   │   │   └── firebase-admin.ts      # Server-side Firebase Admin
 │   │   ├── services/                  # Business logic services
+│   │   │   ├── donationService.ts     # Unified donation tracking (fiat + crypto + cash)
 │   │   │   ├── eventService.ts        # Event CRUD operations
 │   │   │   ├── userService.ts         # User profile management
 │   │   │   ├── sentinelService.ts     # AI disaster intelligence
@@ -141,11 +164,23 @@ NexusAid-Web3/
 │   │   │   ├── notificationService.ts # Push notifications
 │   │   │   └── storageService.ts      # Cloud storage utilities
 │   │   └── context/                   # React contexts (Auth, Theme)
+│   ├── firestore.rules                # Firestore security rules
+│   ├── firestore.indexes.json         # Firestore compound indexes
 │   ├── .env.local                     # Environment variables
 │   └── package.json                   # Frontend dependencies
 │
-├── backend/                           # Standalone backend (Express/Functions)
-│   └── package.json                   # Backend dependencies (stub)
+├── backend/                           # Blockchain Event Indexer (Express)
+│   ├── src/
+│   │   ├── index.js                   # Express server + listener bootstrap
+│   │   ├── config/
+│   │   │   ├── contracts.js           # ABI + address + provider config
+│   │   │   └── firebase.js            # Firebase Admin init
+│   │   └── listeners/
+│   │       ├── donateListener.js      # DonationMade, CampaignCreated, FundsWithdrawn
+│   │       ├── escrowListener.js      # DonationReceived, MilestoneApproved, RefundIssued
+│   │       └── reputationListener.js  # BadgeMinted events
+│   ├── .env                           # Backend environment variables
+│   └── package.json                   # Backend dependencies
 │
 ├── contracts/                         # Hardhat + Solidity environment
 │   ├── contracts/
@@ -156,18 +191,26 @@ NexusAid-Web3/
 │   │       ├── NexusEscrow.sol        # Milestone-gated escrow
 │   │       └── NexusReputation.sol    # Soulbound Token (SBT) badges
 │   ├── scripts/
-│   │   └── deploy/
-│   │       ├── deploy-donate.js       # Deploy NexusDonate
-│   │       ├── deploy-escrow.js       # Deploy NexusEscrow
-│   │       └── deploy-reputation.js   # Deploy NexusReputation
-│   ├── test/                          # Contract unit tests
+│   │   ├── deploy/                    # Deployment scripts
+│   │   └── utils/                     # Utility scripts
+│   ├── deployed-addresses.json        # Last deployed contract addresses
 │   ├── hardhat.config.js              # Network & compiler configuration
 │   └── package.json                   # Contracts dependencies
 │
 ├── documentation/                     # All project documentation
 │   ├── PROJECT_STATUS.md              # Current development status
 │   ├── ROADMAP.md                     # 42-feature strategic roadmap
-│   └── DEPLOY_GUIDE.md                # Beginner's deployment guide
+│   ├── DEPLOY_GUIDE.md                # Beginner's deployment guide
+│   ├── WEB3_IMPLEMENTATION_PLAN.md    # Detailed specs for next Web3 features
+│   └── docs/                          # Extended documentation
+│       ├── WEB3_FEATURES_LIST.md      # Web3 feature tracker
+│       ├── WEB3_INTEGRATION.md        # Hybrid architecture design doc
+│       ├── WEB3_IMPLEMENTATION_PLAN.md # Duplicate of parent (reference)
+│       ├── LOCAL_SETUP_GUIDE.md       # Step-by-step local setup
+│       └── PROJECT_STATUS.md          # Detailed task-level tracker
+│
+├── config/                            # Shared configuration
+│   └── firebase.js                    # Firebase config (legacy)
 │
 ├── scripts/                           # Automation & Orchestration
 │   ├── core/                          # Main dev-loop and launch scripts
@@ -412,6 +455,10 @@ EMAIL_PASS=your_app_password
 | `/api/web3/claim-badge` | POST | Evaluate user metrics and auto-mint eligible SBT badges |
 | `/api/web3/mint-badge` | POST | Directly mint a specific badge type to an address |
 | `/api/web3/milestones` | GET/POST | Manage escrow milestones (propose, approve, reject) |
+| `/api/verify-payment` | POST | Server-side Razorpay payment signature verification |
+| `/api/approve-donation` | POST | Admin-only offline donation approval (Admin SDK) |
+| `/api/ipfs/upload` | POST | Upload files to Pinata IPFS and return CID |
+| `/api/user/profile` | GET/POST | User profile management |
 | `/api/events` | GET/POST | CRUD operations for events |
 | `/api/auth` | POST | Authentication helpers |
 | `/api/chat` | POST | Real-time chat messaging |
@@ -471,12 +518,15 @@ Connected to Chain ID: 31337
 | Command | Description |
 |---|---|
 | `npm install` | Install all workspace dependencies |
-| `npm start` | **[RECOMMENDED]** Start everything (Blockchain, Backend, Frontend) in a single unified terminal |
+| `npm start` / `npm run dev:all` | **[RECOMMENDED]** Start everything (Blockchain, Backend, Frontend) in a single unified terminal |
 | `npm run launch` | Start everything but open separate PowerShell windows for each service |
 | `npm run dev:frontend` | Start just the Next.js frontend |
-| `npm run dev:backend` | Start just the Express backend |
+| `npm run dev:backend` | Start just the Express backend (blockchain event indexer) |
+| `npm run dev:app` | Start backend + frontend concurrently (requires node already running) |
+| `npm run node:contracts` | Start the local Hardhat blockchain node |
+| `npm run deploy:local` | Deploy all contracts to local Hardhat node |
 | `npm run sync-env` | Manually sync `.env` files with deployed contract addresses |
-| `cd contracts && npx hardhat node` | Manually start local blockchain |
+| `npm run db:reset-web3` | Reset stale blockchain data in Firestore after node restart |
 | `node scripts/core/check-node.js` | Verify local node connectivity and balance |
 
 ---
@@ -488,10 +538,22 @@ Connected to Chain ID: 31337
 3. Commit your changes with clear, descriptive messages.
 4. Push to your fork and open a Pull Request.
 
-Please refer to:
-- **[DEPLOY_GUIDE.md](./documentation/DEPLOY_GUIDE.md)** — 🆕 **Complete beginner's guide.** Zero-to-running in 15 minutes, no Web3 experience required.
-- **[PROJECT_STATUS.md](./documentation/PROJECT_STATUS.md)** — Current blockers, recent achievements, and immediate next steps.
-- **[ROADMAP.md](./documentation/ROADMAP.md)** — Strategic 42-feature roadmap covering Account Abstraction, ZK-KYC, DAO governance, and more.
+See **[CONTRIBUTING.md](./CONTRIBUTING.md)** for detailed development workflow, code style, and conventions.
+
+### Documentation Index
+
+| Document | Description |
+|---|---|
+| **[CONTRIBUTING.md](./CONTRIBUTING.md)** | Development workflow, branch naming, commit conventions, code style |
+| **[SECURITY.md](./SECURITY.md)** | Security policy, vulnerability reporting, and security architecture |
+| **[ARCHITECTURE.md](./documentation/ARCHITECTURE.md)** | Deep technical reference — data flows, donation flows, component structure |
+| **[DEPLOY_GUIDE.md](./documentation/DEPLOY_GUIDE.md)** | Complete beginner's guide — zero-to-running in 15 minutes |
+| **[PROJECT_STATUS.md](./documentation/PROJECT_STATUS.md)** | Current blockers, recent achievements, and immediate next steps |
+| **[ROADMAP.md](./documentation/ROADMAP.md)** | Strategic 42-feature roadmap (Account Abstraction, ZK-KYC, DAO, and more) |
+| **[WEB3_IMPLEMENTATION_PLAN.md](./documentation/WEB3_IMPLEMENTATION_PLAN.md)** | Detailed specs for the next 5 Web3 features |
+| **[WEB3_FEATURES_LIST.md](./documentation/docs/WEB3_FEATURES_LIST.md)** | Comprehensive Web3 feature tracker |
+| **[WEB3_INTEGRATION.md](./documentation/docs/WEB3_INTEGRATION.md)** | Hybrid Web2/Web3 architecture design document |
+| **[LOCAL_SETUP_GUIDE.md](./documentation/docs/LOCAL_SETUP_GUIDE.md)** | Extended step-by-step local setup with all env vars |
 
 ---
 

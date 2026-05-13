@@ -1,11 +1,11 @@
 # 🔧 NexusAid — Web3 Implementation Plan
 
 > **5 features. Detailed specs. Ready to build.**  
-> **Last Updated:** May 9, 2026
+> **Last Updated:** May 13, 2026
 
 ---
 
-## Feature 1: Blockchain Event Indexing 🔴 Critical
+## Feature 1: Blockchain Event Indexing ✅ COMPLETED
 
 ### Problem
 When a donation happens on-chain, Firestore has no idea. The dashboard stats are disconnected from blockchain reality.
@@ -131,11 +131,13 @@ events/{eventId}
 - [ ] Mint a badge → Verify user badge doc created
 - [ ] Kill backend → Restart → Verify it reconnects and catches up
 
-### Estimated Effort: **3-4 hours**
+### Estimated Effort: **3-4 hours** ✅ *Completed — All listeners implemented and operational.*
 
 ---
 
-## Feature 2: IPFS Metadata Storage 🟠 High
+## Feature 2: IPFS Metadata Storage ✅ PARTIALLY COMPLETED
+
+> **Note:** Basic IPFS upload functionality is complete (`pinata.ts`, `/api/ipfs/upload`, `useIPFSUpload` hook). Contract-level CID storage and milestone evidence CIDs are still pending.
 
 ### Problem
 Campaign images and milestone evidence are stored on Cloudinary/Firebase — centralized, deletable, censorable.
@@ -546,13 +548,13 @@ graph TD
     style B fill:#ffd43b,color:#333
 ```
 
-| Order | Feature | Depends On | Total Estimate |
-|---|---|---|---|
-| 1st | Event Indexing | Nothing (standalone) | 3-4 hrs |
-| 2nd | IPFS Storage | Nothing (standalone) | 4-5 hrs |
-| 3rd | Gasless Transactions | Nothing (standalone, but needs Amoy) | 5-6 hrs |
-| 4th | Dynamic Badges | Event Indexing (needs donation tracking) | 4-5 hrs |
-| 5th | Multi-Sig Escrow | IPFS (milestone evidence CIDs) | 6-8 hrs |
+| Order | Feature | Depends On | Status | Total Estimate |
+|---|---|---|---|---|
+| 1st | Event Indexing | Nothing (standalone) | ✅ **Done** | 3-4 hrs |
+| 2nd | IPFS Storage | Nothing (standalone) | 🟡 **Partial** (upload done, contract CIDs pending) | 4-5 hrs |
+| 3rd | Gasless Transactions | Nothing (standalone, but needs Amoy) | ❌ Not Started | 5-6 hrs |
+| 4th | Dynamic Badges | Event Indexing (needs donation tracking) | ❌ Not Started | 4-5 hrs |
+| 5th | Multi-Sig Escrow | IPFS (milestone evidence CIDs) | ❌ Not Started | 6-8 hrs |
 
 **Total estimated effort: 22-28 hours**
 
@@ -560,10 +562,10 @@ graph TD
 
 ## Pre-Requisites Before Starting
 
-- [ ] Clean `contracts/package.json` — remove React/Next.js/Firebase dependencies
-- [ ] Ensure Hardhat node runs cleanly with `npx hardhat node`
-- [ ] All 3 contracts deploy without errors
-- [ ] Frontend donation flow works end-to-end on localhost
-- [ ] Firebase service account credentials available for backend
-- [ ] Pinata account created (free tier: 500 uploads/month)
+- [x] Clean `contracts/package.json` — remove React/Next.js/Firebase dependencies ✅
+- [x] Ensure Hardhat node runs cleanly with `npx hardhat node` ✅
+- [x] All 3 contracts deploy without errors ✅
+- [x] Frontend donation flow works end-to-end on localhost ✅
+- [x] Firebase service account credentials available for backend ✅
+- [x] Pinata account created (free tier: 500 uploads/month) ✅
 - [ ] Biconomy dashboard account created (for Feature 3)
